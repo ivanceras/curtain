@@ -1,0 +1,7 @@
+[package]
+name = "curtain"
+version = "0.1.0"
+authors = ["jcesar <jovansonlee.cesar@truste.com>"]
+
+[dependencies]
+rustorm="*"
