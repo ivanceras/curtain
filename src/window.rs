@@ -1,10 +1,13 @@
 use rustorm::table::Table;
+use rustorm::table::Column;
 
 use std::collections::HashMap;
+use rustc_serialize::json;
 
 /// visual presentation of column of a table
 ///directly corresponds to a column of a table
 #[derive(RustcDecodable, RustcEncodable)]
+#[derive(Debug)]
 pub struct Field{
     pub name:String,
     
@@ -33,7 +36,7 @@ pub struct Field{
     /// is the field mandatory for the user to fill up.
     pub is_mandatory:bool,
     ///ordering of the fields, when displayed on the UI
-    pub seq_no:f32,
+    pub seq_no:u32,
     ///should be same line or no
     pub is_same_line:bool,
     pub is_displayed:bool,
@@ -52,11 +55,41 @@ pub struct Field{
     pub default_value:Option<String>,
 }
 
+impl Field{
+    
+    ///derive a field from a column
+    ///[FIXME] A more smarter way decision on other fields,
+    /// by regexing to the column description and look for intel
+    pub fn from_column(column:&Column)->Field{
+        Field{
+            name:column.displayname(),
+            column:column.name.clone(),
+            data_type:column.data_type.clone(),
+            reference:column.db_data_type.clone(),
+            description:column.comment.clone(),
+            info:None,
+            is_identifer:column.is_unique,
+            include_in_search:column.is_unique,
+            is_mandatory:column.is_primary || column.is_unique,
+            seq_no:0,
+            is_same_line:false,
+            is_displayed:true,
+            is_readonly:false,
+            is_autocomplete:false,
+            display_logic:None,
+            display_length:None, 
+            default_value:column.default.clone(),
+        }
+    }
+}
+
 
 /// Tab is a visual presentation of a table
 /// [FIXME] how are the filters, joins expressed between tab to other tabs
 /// When a user open a tab, a list of 10 values will be listed
 #[derive(RustcDecodable, RustcEncodable)]
+#[derive(Debug)]
+
 pub struct Tab{
     pub name:String,
     /// extension tables' fields will have to be listed along side
@@ -91,8 +124,42 @@ pub struct Tab{
     pub default_order:HashMap<String, bool>,
 }
 
+impl Tab{
+    
+    /// derive a tab from a table definition
+    pub fn from_table(table:&Table)->Tab{
+        let fields:Vec<Field> = Self::derive_fields(table);
+        Tab{
+            name:table.displayname(),
+            is_extension:false,
+            is_has_one:false,
+            is_has_many:false,
+            is_direct:false,
+            description:table.comment.clone(),
+            info:None,
+            table:table.name.clone(),
+            schema:table.schema.clone(),
+            fields:fields,
+            tabs:None,
+            logo:None,
+            icon:None,
+            page_size:None,
+            default_order:HashMap::new(),
+        }
+    }
+    
+    fn derive_fields(table:&Table)->Vec<Field>{
+        let mut fields = Vec::new();
+        for c in &table.columns{
+            fields.push(Field::from_column(c));
+        }
+        fields
+    }
+}
+
 ///directly correspond to a table, no need for tabs
 #[derive(RustcDecodable, RustcEncodable)]
+#[derive(Debug)]
 pub struct Window{
     ///name of the window
     pub name:String,
@@ -103,6 +170,20 @@ pub struct Window{
     pub tab:Tab,
 }
 
+
+impl Window{
+    
+    ///Create a window base from a table
+    pub fn from_table(table:&Table)->Window{
+        Window{
+            name: table.displayname(),
+            description: table.comment.clone(),
+            info: None,
+            tab:Tab::from_table(table),
+        }
+    }
+    
+}
 /// build windows from a set of tables
 /// 
 pub fn extract_windows(tables:&Vec<Table>){
@@ -124,20 +205,20 @@ pub fn extract_windows(tables:&Vec<Table>){
                     println!("{}", t.name);
                     window_tables.push(t);
                     for (col, has1) in t.referred_tables(tables){
-                        println!("\t has one: {}({}) {} condensed: {}",col.displayname(), col.name, has1.name, col.condense_name());
+                        println!("\t has one: {} -> {}", col.condense_name(), has1);
                     }
                     for ext in t.extension_tables(tables){
-                        println!("\t ext tab: {}", ext.name);
+                        println!("\t ext tab: {} [{}]", ext.name, ext.concise_name(t));
                     }
                     for (has_many,_) in t.referring_tables(tables){
                         if !has_many.is_linker_table(){
-                            println!("\t has many direct: {}", has_many.name);
+                            println!("\t has many direct: {} [{}]", has_many.name, has_many.concise_name(t));
                         }else{
                             //println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
                         }
                     }
                     for (has_many,linker) in t.indirect_referring_tables(tables){
-                        println!("\t has many: {} via {}",has_many.name, linker.name);
+                        println!("\t has many: {}[{}], via {}",has_many.name, has_many.concise_name(t), linker.name);
                     }
                 }
             }
@@ -145,9 +226,13 @@ pub fn extract_windows(tables:&Vec<Table>){
     }
     // all other tables can also have their own windows, but will not be displayed on the main menu.
     println!("Final list of main window tables");
-    for w in window_tables{
-        println!("{}", w);
+    for wt in window_tables{
+        println!("{}", wt);
     }
+    let product = Table::get_table("product", tables).unwrap();
+    let window = Window::from_table(&product);
+    println!("\n\nwindow: {:?}", window);
+    println!("\njson: {}",  json::as_pretty_json(&window));
 }
 
 fn get_all_extension_tables(tables:&Vec<Table>)->Vec<&Table>{
