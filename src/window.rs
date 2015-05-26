@@ -1,8 +1,10 @@
-use table::Table;
+use rustorm::table::Table;
+
 use std::collections::HashMap;
 
 /// visual presentation of column of a table
 ///directly corresponds to a column of a table
+#[derive(RustcDecodable, RustcEncodable)]
 pub struct Field{
     pub name:String,
     
@@ -54,6 +56,7 @@ pub struct Field{
 /// Tab is a visual presentation of a table
 /// [FIXME] how are the filters, joins expressed between tab to other tabs
 /// When a user open a tab, a list of 10 values will be listed
+#[derive(RustcDecodable, RustcEncodable)]
 pub struct Tab{
     pub name:String,
     /// extension tables' fields will have to be listed along side
@@ -89,6 +92,7 @@ pub struct Tab{
 }
 
 ///directly correspond to a table, no need for tabs
+#[derive(RustcDecodable, RustcEncodable)]
 pub struct Window{
     ///name of the window
     pub name:String,

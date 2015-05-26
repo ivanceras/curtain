@@ -1,9 +1,10 @@
 extern crate rustorm;
+extern crate curtain;
 
 use rustorm::codegen;
-use rustorm::window;
 use rustorm::database::DatabaseDev;
 use rustorm::db::postgres::Postgres;
+use curtain::window;
 
 fn main(){
     let pg:Result<Postgres,&str> = Postgres::new("postgres://postgres:p0stgr3s@localhost/bazaar_v5");

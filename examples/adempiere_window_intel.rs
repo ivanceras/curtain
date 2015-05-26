@@ -1,7 +1,8 @@
 extern crate rustorm;
+extern crate curtain;
 
 use rustorm::codegen;
-use rustorm::window;
+use curtain::window;
 use rustorm::database::DatabaseDev;
 use rustorm::db::postgres::Postgres;
 
