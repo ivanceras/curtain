@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["jcesar <jovansonlee.cesar@truste.com>"]
 
 
+[[bin]]
+name = "iron_curtain"
+
 [dependencies.rustorm]
 path = "../rustorm"
 
@@ -11,7 +14,14 @@ path = "../rustorm"
 [dependencies]
 rustc-serialize = "*"
 uuid = "*"
+iron = "*"
+mount = "*"
+router = "*"
 
 [dependencies.chrono]
 version = "*"
 features = ["rustc-serialize"]
+
+
+[dependencies.staticfile]
+git = "https://github.com/iron/staticfile.git"

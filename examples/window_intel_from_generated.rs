@@ -7,7 +7,7 @@ use rustorm::database::DatabaseDev;
 use rustorm::db::postgres::Postgres;
 
 fn main(){
-    let pg:Result<Postgres,&str> = Postgres::new("postgres://postgres:p0stgr3s@localhost/bazaar_v5");
+    let pg:Result<Postgres,&str> = Postgres::new("postgres://postgres:p0stgr3s@localhost/bazaar_v6");
     match pg{
         Ok(pg) => {
             derive_all_windows(&pg);

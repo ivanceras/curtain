@@ -26,3 +26,10 @@ defaults will have to do a server round trip since it wouldnt know which record 
 * The record of the parent table will be used as filter for the records.
 extension tables will be fecthed togehter with the main record since it is sure that there is only 1 extension record.
 * If a table is a has many, does it make since to display its own windows, such case is, order_line, category
+
+##Determine which table might contain which record
+
+```sql
+select tableoid, (select relname from pg_class where oid = system.record.tableoid) as class, * from system.record
+where name like 'A%'
+```
