@@ -1,7 +1,9 @@
 use window::Tab;
 use std::collections::HashMap;
 
-// identifier values of each record of a table
+/// identifier values of each record of a table
+/// This is used in has_ones, has_many lookup fields
+/// [FIXME] should be renamed to Identifiable
 #[derive(Clone)]
 pub struct Identifier{
     /// the primary key value of this record

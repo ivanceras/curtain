@@ -19,6 +19,9 @@ pub struct Field{
     
     /// the column name this field corresponds to
     pub column:String,
+    
+    /// this corresponds to a primary column
+    pub is_keyfield: bool,
     /// this will be the bases of how to display the field in the UI
     /// such as Date will be displayed with a date picker
     pub data_type:String,
@@ -40,7 +43,7 @@ pub struct Field{
     pub info:Option<String>,
     /// whether or not this field, contributes to the records identity
     /// the distinctive display name will be derived from fields marked a identifier
-    pub is_identifer:bool,
+    pub is_identifier:bool,
     /// whether or not this field, will have to be included in the searching of records
     /// same as is_selection_column
     pub include_in_search:bool,
@@ -82,12 +85,13 @@ impl Field{
         Field{
             name:column.displayname(),
             column:column.name.clone(),
+            is_keyfield:column.is_primary,
             data_type:column.data_type.clone(),
             reference:column.db_data_type.clone(),
             reference_value:None,
             description:column.comment.clone(),
             info:None,
-            is_identifer:column.is_unique,
+            is_identifier: column.is_unique,
             include_in_search:column.is_unique,
             is_mandatory:column.is_primary || column.is_unique,
             seq_no:0,
@@ -105,12 +109,13 @@ impl Field{
         Field{
             name:column.condense_name(),
             column:column.name.clone(),
+            is_keyfield:column.is_primary,
             data_type:column.data_type.clone(),
             reference:"Table".to_string(),
             reference_value:Some(has_one.name.to_string()),
             description:column.comment.clone(),
             info:None,
-            is_identifer:column.is_unique,
+            is_identifier:column.is_unique,
             include_in_search:column.is_unique,
             is_mandatory:column.is_primary || column.is_unique,
             seq_no:0,
@@ -410,11 +415,18 @@ impl Tab{
     fn build_query_for_identifier_list(&self)->Vec<Identifier>{
         let mut q = Query::select();
         q.from_table(&self.table);
+        
+        for field in &self.fields{
+            if field.is_identifier || field.is_keyfield {
+                q.enumerate_column(&self.table, &field.column);
+            }
+        }
         panic!("soon");
     }
 }
 
-///directly correspond to a table, no need for tabs
+/// directly correspond to a table, no need for tabs
+/// TODO: should this include the identifier repo when serialized to the client side
 #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug)]
 pub struct Window{
