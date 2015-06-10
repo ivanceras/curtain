@@ -1,0 +1,11 @@
+{
+  "name": "Example Rust application",
+  "description": "A barebones Rust application using the Iron middleware framework",
+  "repository": "https://github.com/emk/heroku-rust-cargo-hello",
+  "success_url": "/",
+  "keywords": ["rust", "iron"],
+  "website": "http://www.randomhacks.net/2014/09/17/deploying-rust-heroku-iron/",
+  "env": {
+    "BUILDPACK_URL": "https://github.com/emk/heroku-buildpack-rust.git"
+  }
+}
