@@ -7,7 +7,7 @@ dependencies = [
  "mount 0.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustorm 0.0.3",
+ "rustorm 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "staticfile 0.0.3 (git+https://github.com/iron/staticfile.git)",
  "uuid 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -344,6 +344,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rustorm"
 version = "0.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",

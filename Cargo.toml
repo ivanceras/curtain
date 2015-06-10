@@ -7,8 +7,8 @@ authors = ["jcesar <jovansonlee.cesar@truste.com>"]
 [[bin]]
 name = "iron_curtain"
 
-[dependencies.rustorm]
-path = "../rustorm"
+# [dependencies.rustorm]
+# path = "../rustorm"
 
 
 [dependencies]
@@ -17,6 +17,7 @@ uuid = "*"
 iron = "*"
 mount = "*"
 router = "*"
+rustorm = "*"
 
 [dependencies.chrono]
 version = "*"
