@@ -1,0 +1,213 @@
+     Running `target/release/examples/list_window`
+Extracted bazaar.address
+Extracted bazaar.api_key
+Extracted system.base
+Extracted bazaar.cart
+Extracted bazaar.cart_line
+Extracted bazaar.category
+Extracted bazaar.client
+Extracted payment.country
+Extracted payment.currency
+Extracted payment.exchange_rate
+Extracted bazaar.invoice
+Extracted bazaar.order_line
+Extracted bazaar.orders
+Extracted bazaar.organization
+Extracted bazaar.photo
+Extracted bazaar.photo_sizes
+Extracted bazaar.product
+Extracted bazaar.product_availability
+Extracted bazaar.product_category
+Extracted bazaar.product_photo
+Extracted bazaar.product_review
+Extracted system.record
+Extracted bazaar.review
+Extracted bazaar.settings
+Extracted bazaar.user_info
+Extracted bazaar.user_location
+Extracted bazaar.user_review
+Extracted bazaar.users
+Extracted bazaar.wishlist
+Extracted bazaar.wishlist_line
+[
+  {
+    "name": "Address",
+    "description": "@Address",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Api Key",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Base",
+    "description": "Base table contains the creation and modification status of a record",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Cart",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Cart Line",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Category",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Client",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Country",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Currency",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Exchange Rate",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Invoice",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Order Line",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Orders",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Organization",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Photo",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Photo Sizes",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Product",
+    "description": "This will be exposed as an @Api, including @Table(users, category, product_availability, photo)",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Product Availability",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Product Category",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Product Photo",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Product Review",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Record",
+    "description": "All User table should inherit from this one",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Review",
+    "description": "Reviews of buyers from the sellers and the sellers' products",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Settings",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "User Info",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "User Location",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "User Review",
+    "description": "Reviews of the seller by the user",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Users",
+    "description": "This are @Users, will be used for @Login",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Wishlist",
+    "description": null,
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Wishlist Line",
+    "description": null,
+    "info": null,
+    "tab": null
+  }
+]

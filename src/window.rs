@@ -437,7 +437,7 @@ pub struct Window{
     ///main tab, must have at least 1
     /// more helpful information about this window
     pub info:Option<String>,
-    pub tab:Tab,
+    pub tab:Option<Tab>,
 }
 
 
@@ -449,7 +449,17 @@ impl Window{
             name: table.displayname(),
             description: table.comment.clone(),
             info: None,
-            tab:Tab::detailed_from_table(table, all_tables),
+            tab:Some(Tab::detailed_from_table(table, all_tables)),
+        }
+    }
+    
+    /// just the summary ommitting the need to derive tabs
+    pub fn summary_from_table(table:&Table, all_tables:&Vec<Table>)->Window{
+        Window{
+            name: table.displayname(),
+            description: table.comment.clone(),
+            info: None,
+            tab:None,
         }
     }
     
@@ -482,13 +492,23 @@ impl Window{
     
     fn build_query(&self){
         let q = Query::select();
-        let tab = &self.tab;
+        let tab = &self.tab.as_ref().unwrap();
         let table = &tab.table;
         let page_size = &tab.page_size;
         let fields = &tab.fields;
         // retrieve the has_many only of the first record
         
     }
+}
+
+
+pub fn list_windows(tables:&Vec<Table>){
+    let mut window_list = vec![];
+    for t in tables{
+        let window = Window::summary_from_table(t, tables);
+        window_list.push(window);
+    }
+    println!("{}",json::as_pretty_json(&window_list));
 }
 
 //// a summary of windows

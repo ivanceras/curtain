@@ -33,3 +33,12 @@ extension tables will be fecthed togehter with the main record since it is sure 
 select tableoid, (select relname from pg_class where oid = system.record.tableoid) as class, * from system.record
 where name like 'A%'
 ```
+
+
+
+## heroku deployment
+git clone https://github.com/emk/heroku-rust-cargo-hello.git
+cd heroku-rust-cargo-hello
+heroku create --buildpack https://github.com/emk/heroku-buildpack-rust.git
+heroku login
+git push heroku master
