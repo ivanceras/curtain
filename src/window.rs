@@ -5,6 +5,10 @@ use std::collections::HashMap;
 use rustc_serialize::json;
 use rustorm::query::Query;
 use identifier::Identifier;
+use codegenta::generator;
+
+use rustorm::database::DatabaseDev;
+
 
 /// visual presentation of column of a table
 /// directly corresponds to a column of a table
@@ -270,7 +274,7 @@ impl Tab{
         let fields:Vec<Field> = Self::derive_fields(ext, all_tables);
         
         Tab{
-            name:ext.concise_name(from_table),
+            name:ext.condensed_displayname(from_table),
             is_extension:true,
             is_has_one:false,
             is_has_many:false,
@@ -292,7 +296,7 @@ impl Tab{
     pub fn from_has_many_table(has_many:&Table, table:&Table, all_tables:&Vec<Table>)->Tab{
         let fields:Vec<Field> = Self::derive_fields(has_many, all_tables);
         Tab{
-            name:has_many.concise_name(table),
+            name:has_many.condensed_displayname(table),
             is_extension:false,
             is_has_one:false,
             is_has_many:true,
@@ -315,7 +319,7 @@ impl Tab{
     pub fn from_has_many_indirect_table(has_many:&Table, linker_table:&Table, all_tables:&Vec<Table>)->Tab{
         let fields:Vec<Field> = Self::derive_fields(has_many, all_tables);
         Tab{
-            name:has_many.concise_name(linker_table),
+            name:has_many.condensed_displayname(linker_table),
             is_extension:false,
             is_has_one:false,
             is_has_many:true,
@@ -418,7 +422,7 @@ impl Tab{
         
         for field in &self.fields{
             if field.is_identifier || field.is_keyfield {
-                q.enumerate_column(&self.table, &field.column);
+                q.column(&format!("{}.{}",self.table, field.column));
             }
         }
         panic!("soon");
@@ -434,6 +438,8 @@ pub struct Window{
     /// derive from  "{tab[0].displayname()}, tab[1].condense_name(tab[0].table) & tab[n].displayname()}"
     pub name:String,
     pub description:Option<String>,
+    /// the table name used as identifier
+    pub table: String,
     ///main tab, must have at least 1
     /// more helpful information about this window
     pub info:Option<String>,
@@ -448,6 +454,7 @@ impl Window{
         Window{
             name: table.displayname(),
             description: table.comment.clone(),
+            table: table.name.to_string(),
             info: None,
             tab:Some(Tab::detailed_from_table(table, all_tables)),
         }
@@ -457,6 +464,7 @@ impl Window{
     pub fn summary_from_table(table:&Table, all_tables:&Vec<Table>)->Window{
         Window{
             name: table.displayname(),
+            table: table.name.to_string(),
             description: table.comment.clone(),
             info: None,
             tab:None,
@@ -501,20 +509,21 @@ impl Window{
     }
 }
 
-
-pub fn list_windows(tables:&Vec<Table>){
+/// list a sumamary of window tables
+pub fn list_windows(tables:&Vec<Table>)->Vec<Window>{
+    let window_tables = window_tables(tables);
     let mut window_list = vec![];
-    for t in tables{
+    for t in window_tables{
         let window = Window::summary_from_table(t, tables);
         window_list.push(window);
     }
-    println!("{}",json::as_pretty_json(&window_list));
+    window_list
 }
 
-//// a summary of windows
-/// build windows from a set of tables
-/// 
-pub fn extract_windows(tables:&Vec<Table>){
+///
+/// return the list of tables that has a window
+///
+fn window_tables(tables:&Vec<Table>)->Vec<&Table>{
     let mut window_tables = Vec::new();
     let all_extension_tables = get_all_extension_tables(tables);
     for t in tables{
@@ -536,33 +545,52 @@ pub fn extract_windows(tables:&Vec<Table>){
                         println!("\t has one: {} -> {}", col.condense_name(), has1);
                     }
                     for ext in t.extension_tables(tables){
-                        println!("\t ext tab: {} [{}]", ext.name, ext.concise_name(t));
+                        println!("\t ext tab: {} [{}]", ext.name, ext.condensed_displayname(t));
                     }
                     for (has_many, column) in t.referring_tables(tables){
                         if !has_many.is_linker_table(){
-                            println!("\t has many direct: {} [{}] via column: {}", has_many.name, has_many.concise_name(t), column.name);
+                            println!("\t has many direct: {} [{}] via column: {}", has_many.name, has_many.condensed_displayname(t), column.name);
                         }else{
                             //println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
                         }
                     }
                     for (has_many,linker) in t.indirect_referring_tables(tables){
-                        println!("\t has many INDIRECT: {}[{}], via {}",has_many.name, has_many.concise_name(t), linker.name);
+                        println!("\t has many INDIRECT: {}[{}], via {}",has_many.name, has_many.condensed_displayname(t), linker.name);
                     }
                 }
             }
         }
     }
-    // all other tables can also have their own windows, but will not be displayed on the main menu.
-    println!("Final list of main window tables");
+    window_tables
+}
+
+//// a summary of windows
+/// build windows from a set of tables
+/// 
+pub fn extract_windows(tables:&Vec<Table>)->Vec<Window>{
+    
+    let window_tables = window_tables(tables);
+    let mut all_windows = vec![];
     for wt in window_tables{
         println!("{}", wt);
+        let window = Window::from_table(&wt, tables);
+        all_windows.push(window);
     }
-    let product = Table::get_table("product", tables);
-    if product.is_some(){
-        let window = Window::from_table(&product.unwrap(), tables);
-        println!("\n\nwindow: {:?}", window);
-        println!("\njson: {}",  json::as_pretty_json(&window));
+    all_windows
+}
+
+
+
+pub fn get_window(db_dev:&DatabaseDev, table_name: &str)->Result<Window, String>{
+    println!("getting window: {}", table_name);
+    let tables = generator::get_all_tables(db_dev);
+    let windows = extract_windows(&tables);
+    for win in windows{
+        if win.table == table_name{
+            return Ok(win);
+        }
     }
+    Err(format!("No window for {}",table_name))
 }
 
 fn get_all_extension_tables(tables:&Vec<Table>)->Vec<&Table>{
