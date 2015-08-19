@@ -22,12 +22,13 @@ use persistent::{Write,Read};
 use rustc_serialize::json::{self,ToJson};
 use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
+use global::AppDb;
 
 mod window;
+mod window_service;
 mod identifier;
+mod global;
 
-pub struct AppDb;
-impl Key for AppDb { type Value = ManagedPool; }
 
 
 fn say_hello(req: &mut Request) -> IronResult<Response> {
@@ -35,39 +36,7 @@ fn say_hello(req: &mut Request) -> IronResult<Response> {
     Ok(Response::with((status::Ok, "This request was routed!")))
 }
 
-fn get_window(req: &mut Request) -> IronResult<Response> {
-    let pool = req.get::<Read<AppDb>>().unwrap();
-    let table_name = req.extensions.get::<Router>().unwrap().find("table");
-    match table_name{
-        Some(ref table_name) => {
-            println!("table_name: {:?}", table_name);
-            let db = pool.connect();
-            match db {
-                Ok(db) => {
-                    match window::get_window(db.as_dev(), table_name){
-                        Ok(window) => {
-                            let encoded = json::encode(&window);
-                            let mut response = Response::with((status::Ok, encoded.unwrap()));
-                            response.headers.set(AccessControlAllowOrigin::Any);
-                            return Ok(response)
-                        },
-                        Err(e) => {
-                            let mut response = Response::with((status::BadRequest, e));
-                            response.headers.set(AccessControlAllowOrigin::Any);
-                            return Ok(response)
-                        }
-                    }
-                },
-                Err(e) => return Ok(Response::with((status::BadRequest, "Unable to connect to database")))
-            }
-            
-            
-        },
-        None =>{
-             return Ok(Response::with((status::BadRequest, "No table specified")))
-        }
-    }
-}
+
 
 fn main() {
     
@@ -76,9 +45,9 @@ fn main() {
     
     let mut router = Router::new();
     router
-        .get("/hello", say_hello)
-        .get("/window/:table", get_window);
-        //.options("/window/:table", get_window);
+        .get("/", say_hello)
+        .get("/window", window_service::list_window)
+        .get("/window/:table", window_service::get_window);
     
     let mut middleware = Chain::new(router);
     middleware.link(Read::<AppDb>::both(pool));  
@@ -93,8 +62,10 @@ fn get_server_port() -> u16 {
 }
 
 fn get_db_url()->String{
+    let default = "postgres://postgres:p0stgr3s@localhost/bazaar_v6";
+    //let default = "postgres://postgres:p0stgr3s@localhost:5432/device_farm_v2";
     match env::var("DATABASE_URL") {
         Ok(val) => val,
-        Err(_) => "postgres://postgres:p0stgr3s@localhost/bazaar_v6".to_string()
+        Err(_) => default.to_string()
     }
 }

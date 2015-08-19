@@ -510,7 +510,7 @@ impl Window{
 }
 
 /// list a sumamary of window tables
-pub fn list_windows(tables:&Vec<Table>)->Vec<Window>{
+pub fn list_windows_summary(tables:&Vec<Table>)->Vec<Window>{
     let window_tables = window_tables(tables);
     let mut window_list = vec![];
     for t in window_tables{
@@ -581,17 +581,7 @@ pub fn extract_windows(tables:&Vec<Table>)->Vec<Window>{
 
 
 
-pub fn get_window(db_dev:&DatabaseDev, table_name: &str)->Result<Window, String>{
-    println!("getting window: {}", table_name);
-    let tables = generator::get_all_tables(db_dev);
-    let windows = extract_windows(&tables);
-    for win in windows{
-        if win.table == table_name{
-            return Ok(win);
-        }
-    }
-    Err(format!("No window for {}",table_name))
-}
+
 
 fn get_all_extension_tables(tables:&Vec<Table>)->Vec<&Table>{
     let mut all_extension_tables = Vec::new();
