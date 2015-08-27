@@ -9,3 +9,4 @@ extern crate codegenta;
 pub mod window;
 pub mod reference;
 pub mod identifier;
+pub mod table_info;

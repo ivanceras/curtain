@@ -28,6 +28,7 @@ mod window;
 mod window_service;
 mod identifier;
 mod global;
+mod data_service;
 
 
 
@@ -41,13 +42,16 @@ fn say_hello(req: &mut Request) -> IronResult<Response> {
 fn main() {
     
     let url = get_db_url();
+    println!("using: {}",url);
     let pool = ManagedPool::init(&url, 10);
     
     let mut router = Router::new();
     router
         .get("/", say_hello)
         .get("/window", window_service::list_window)
-        .get("/window/:table", window_service::get_window);
+        .get("/window/:table", window_service::get_window)
+        .get("/data/:table",data_service::get_data)
+        ;
     
     let mut middleware = Chain::new(router);
     middleware.link(Read::<AppDb>::both(pool));  
