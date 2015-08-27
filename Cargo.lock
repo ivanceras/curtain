@@ -3,13 +3,13 @@ name = "curtain"
 version = "0.1.0"
 dependencies = [
  "chrono 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "codegenta 0.0.2",
+ "codegenta 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "mount 0.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "persistent 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustorm 0.0.9",
+ "rustorm 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "staticfile 0.0.3 (git+https://github.com/iron/staticfile.git)",
  "uuid 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -63,11 +63,12 @@ dependencies = [
 
 [[package]]
 name = "codegenta"
-version = "0.0.2"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustorm 0.0.9",
+ "rustorm 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -477,6 +478,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rustorm"
 version = "0.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
