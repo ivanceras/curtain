@@ -20,3 +20,6 @@ git remote show heroku
 * remote heroku
   Fetch URL: https://git.heroku.com/iron-curtain.git
   Push  URL: https://git.heroku.com/iron-curtain.git
+  
+To switch to ssh git  
+git remote set-url heroku git@heroku.com:iron-curtain.git
