@@ -4,13 +4,11 @@ use iron::prelude::*;
 use iron::headers::*;
 use persistent::{Read};
 use rustc_serialize::json::{self};
-use codegenta::generator;
 
 use rustorm::database::Database;
 use rustorm::dao::{DaoResult, SerDaoResult};
 use rustorm::database::DbError;
 use rustorm::query::Query;
-use window::{self, Window};
 use global::AppDb;
 
 pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDaoResult, DbError>{

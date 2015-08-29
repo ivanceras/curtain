@@ -9,6 +9,20 @@ use codegenta::generator;
 
 use rustorm::database::DatabaseDev;
 
+/// detailed reference of a field
+/// 
+pub enum Reference{
+    /// the field is treated as just plain data in the table
+    Data(String),
+    /// it is a predefined list of values, like enum list in database
+    List,
+    /// This field is a referring column to table lookup from some other table
+    /// The string is the table
+    DirectTableLookup(String),
+    /// There's a linking table and the table to linked to this field
+    IndirectTableLookUp(String, String)
+}
+
 
 /// visual presentation of column of a table
 /// directly corresponds to a column of a table
@@ -24,6 +38,8 @@ pub struct Field{
     /// the column name this field corresponds to
     pub column:String,
     
+    /// the complete name of the field in the form of {schema}.{table}.{column}
+    pub complete_name: String,
     /// this corresponds to a primary column
     pub is_keyfield: bool,
     /// this will be the bases of how to display the field in the UI
@@ -86,9 +102,11 @@ impl Field{
     /// by regexing to the column description and look for intel
     /// is_display can be run with intel runner
     pub fn from_column(column:&Column, table:&Table, tables:&Vec<Table>)->Field{
+        let complete_name = format!("{}.{}",table.complete_name(),column.name);
         Field{
             name:column.displayname(),
             column:column.name.clone(),
+            complete_name: complete_name,
             is_keyfield:column.is_primary,
             data_type:column.data_type.clone(),
             reference:column.db_data_type.clone(),
@@ -110,13 +128,15 @@ impl Field{
     }
     
     pub fn from_has_one_column(column:&Column, table:&Table, has_one:&Table, tables:&Vec<Table>)->Field{
+        let complete_name = format!("{}.{}",table.complete_name(),column.name);
         Field{
             name:column.condense_name(),
             column:column.name.clone(),
+            complete_name: complete_name,
             is_keyfield:column.is_primary,
             data_type:column.data_type.clone(),
             reference:"Table".to_string(),
-            reference_value:Some(has_one.name.to_string()),
+            reference_value:Some(has_one.complete_name()),
             description:column.comment.clone(),
             info:None,
             is_identifier:column.is_unique,
@@ -440,6 +460,7 @@ pub struct Window{
     pub description:Option<String>,
     /// the table name used as identifier
     pub table: String,
+    pub schema: String,
     ///main tab, must have at least 1
     /// more helpful information about this window
     pub info:Option<String>,
@@ -455,6 +476,7 @@ impl Window{
             name: table.displayname(),
             description: table.comment.clone(),
             table: table.name.to_string(),
+            schema: table.schema.to_string(),
             info: None,
             tab:Some(Tab::detailed_from_table(table, all_tables)),
         }
@@ -465,6 +487,7 @@ impl Window{
         Window{
             name: table.displayname(),
             table: table.name.to_string(),
+            schema: table.schema.to_string(),
             description: table.comment.clone(),
             info: None,
             tab:None,

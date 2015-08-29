@@ -7,19 +7,32 @@ use rustc_serialize::json::{self};
 use codegenta::generator;
 
 use rustorm::database::DatabaseDev;
+use rustorm::query::TableName;
 use window::{self, Window};
 use global::AppDb;
 
-fn retrieve_window_api(db_dev:&DatabaseDev, table_name: &str)->Result<Window, String>{
-    println!("getting window: {}", table_name);
+fn retrieve_window_api(db_dev:&DatabaseDev, arg_table_name: &str)->Result<Window, String>{
+    println!("getting window: {}", arg_table_name);
     let tables = generator::get_all_tables(db_dev);
     let windows = window::extract_windows(&tables);
-    for win in windows{
-        if win.table == table_name{
-            return Ok(win);
+    let table_name  = TableName::from_str(arg_table_name);
+    let schema = table_name.schema;
+    if schema.is_some(){
+        let schema = schema.unwrap();
+        for win in windows{
+            if win.table == table_name.name && win.schema == schema{
+                return Ok(win);
+            }
         }
     }
-    Err(format!("No window for {}",table_name))
+    else{
+        for win in windows{
+            if win.table == table_name.name{
+                return Ok(win);
+            }
+        }
+    }
+    Err(format!("No window for {}",arg_table_name))
 }
 
 pub fn list_window_api(db_dev:&DatabaseDev)->Result<Vec<Window>, String>{

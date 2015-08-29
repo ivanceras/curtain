@@ -3,7 +3,7 @@ FROM ubuntu:14.04
 ENV HOME /home/curtain/
 
 
-ENV DATABASE_URL postgres://postgres:p0stgr3s@45.55.7.231:5432/bazaar_v6
+ENV DATABASE_URL postgres://postgres:p0stgr3s@45.55.7.231:5432/bazaar_v7
 
 ENV PORT 8080
 
