@@ -68,7 +68,7 @@ fn get_server_port() -> u16 {
 fn get_db_url()->String{
     //let default = "postgres://postgres:p0stgr3s@localhost/bazaar_v7";
     //let default = "postgres://postgres:p0stgr3s@localhost:5432/device_farm_v2";
-    let default = "postgres://postgres:p0stgr3s@http://45.55.7.231//bazaar_v7";
+    let default = "postgres://postgres:p0stgr3s@45.55.7.231/bazaar_v7";
     match env::var("DATABASE_URL") {
         Ok(val) => val,
         Err(_) => default.to_string()
