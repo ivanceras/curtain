@@ -23,3 +23,5 @@ git remote show heroku
   
 To switch to ssh git  
 git remote set-url heroku git@heroku.com:iron-curtain.git
+
+heroku apps:rename bazaar_db --app heroku-postgres-50ddc241
