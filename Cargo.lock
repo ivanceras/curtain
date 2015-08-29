@@ -3,13 +3,13 @@ name = "curtain"
 version = "0.1.0"
 dependencies = [
  "chrono 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "codegenta 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "codegenta 0.0.2 (git+https://github.com/ivanceras/codegenta.git)",
  "iron 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "mount 0.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "persistent 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustorm 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustorm 0.1.2 (git+https://github.com/ivanceras/rustorm.git)",
  "staticfile 0.0.5 (git+https://github.com/iron/staticfile.git)",
  "uuid 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -30,11 +30,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "memchr 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "bitflags"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bitflags"
@@ -64,11 +59,11 @@ dependencies = [
 [[package]]
 name = "codegenta"
 version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/ivanceras/codegenta.git#df7faa755a5e5f96531b85f8e5b53486dd5df298"
 dependencies = [
  "chrono 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustorm 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustorm 0.1.2 (git+https://github.com/ivanceras/rustorm.git)",
  "time 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -205,15 +200,6 @@ version = "2.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "pnacl-build-helper 1.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "libsqlite3-sys"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "libc 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "pkg-config 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -412,15 +398,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "r2d2_sqlite"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "r2d2 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rusqlite 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "rand"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -460,25 +437,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "rusqlite"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "bitflags 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "libsqlite3-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "time 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "rustc-serialize"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustorm"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "0.1.2"
+source = "git+https://github.com/ivanceras/rustorm.git#7b4ac672f953f1c59722d9ab6c764d1f1cf608f3"
 dependencies = [
  "chrono 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -487,9 +453,7 @@ dependencies = [
  "postgres 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "r2d2 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "r2d2_postgres 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "r2d2_sqlite 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 0.1.41 (registry+https://github.com/rust-lang/crates.io-index)",
- "rusqlite 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 0.2.37 (registry+https://github.com/rust-lang/crates.io-index)",

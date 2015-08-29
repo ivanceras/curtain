@@ -7,8 +7,14 @@ authors = ["jcesar <jovansonlee.cesar@truste.com>"]
 [[bin]]
 name = "iron_curtain"
 
+[dependencies.rustorm]
+git = "https://github.com/ivanceras/rustorm.git"
+
 #[dependencies.rustorm]
 #path = "../rustorm"
+
+[dependencies.codegenta]
+git = "https://github.com/ivanceras/codegenta.git"
 
 #[dependencies.codegenta]
 #path = "../codegenta"
@@ -21,8 +27,8 @@ iron = "*"
 mount = "*"
 router = "*"
 persistent = "*"
-rustorm = "*"
-codegenta = "*"
+#rustorm = "*"
+#codegenta = "*"
 
 [dependencies.chrono]
 version = "*"
