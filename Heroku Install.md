@@ -21,7 +21,26 @@ git remote show heroku
   Fetch URL: https://git.heroku.com/iron-curtain.git
   Push  URL: https://git.heroku.com/iron-curtain.git
   
-To switch to ssh git  
+## To switch to ssh git 
+
+``` 
+
 git remote set-url heroku git@heroku.com:iron-curtain.git
 
-heroku apps:rename bazaar_db --app heroku-postgres-50ddc241
+```
+
+
+## Don't forget to set rust version in RustConfig file
+
+```
+cat RustConfig
+VERSION="1.2.0"
+
+```
+## Configure the environment variables
+DATABASE_URL : postgres://atperknxxnjadk:jpasCIjuPd3MW48DUnb579-imU@ec2-23-21-140-156.compute-1.amazonaws.com:5432/dd2fbo2kj0q9l
+
+PORT : 80
+
+##Deployed to 
+https://iron-curtain.herokuapp.com

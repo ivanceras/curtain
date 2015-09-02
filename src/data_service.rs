@@ -2,7 +2,7 @@ use iron::status;
 use router::Router;
 use iron::prelude::*;
 use iron::headers::*;
-use persistent::{Read};
+use persistent::Read as PRead;
 use rustc_serialize::json::{self};
 
 use rustorm::database::Database;
@@ -10,6 +10,8 @@ use rustorm::dao::{DaoResult, SerDaoResult};
 use rustorm::database::DbError;
 use rustorm::query::Query;
 use global::AppDb;
+use global::SessionHash;
+use std::io::Read;
 
 pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDaoResult, DbError>{
     let mut query = Query::select_all();
@@ -23,7 +25,7 @@ pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDa
 }
 
 pub fn get_data(req: &mut Request) -> IronResult<Response> {
-    let pool = req.get::<Read<AppDb>>().unwrap();
+    let pool = req.get::<PRead<AppDb>>().unwrap();
     let table_name = req.extensions.get::<Router>().unwrap().find("table");
     let page_size = 20;
     println!("query: {:?}", req.url.query);
@@ -57,4 +59,16 @@ pub fn get_data(req: &mut Request) -> IronResult<Response> {
              return Ok(Response::with((status::BadRequest, "No table specified")))
         }
     }
+}
+
+pub fn set_db_url(req: &mut Request) -> IronResult<Response> {
+    println!("Setting db url...");
+    let mut content = String::new();
+    req.body.read_to_string(&mut content).unwrap();
+    println!("content: {}",content);
+    let db_url = content;
+    SessionHash::set_db_url(req, &db_url);
+    let mut response = Response::with((status::Ok, "Ok"));
+    response.headers.set(AccessControlAllowOrigin::Any);
+    return Ok(response)
 }

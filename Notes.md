@@ -66,3 +66,6 @@ git remote show heroku
   Fetch URL: https://git.heroku.com/iron-curtain.git
   Push  URL: https://git.heroku.com/iron-curtain.git
 
+
+## Run the project with loggin
+reset && cargo build --release && reset && RUST_LOG=iron_curtain=debug cargo run --release

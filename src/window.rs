@@ -167,7 +167,7 @@ impl Field{
 /// format for user table will be {1}, {2}, i.e 1 = lastname, 2 = firstname
 #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug)]
-
+#[derive(Clone)]
 pub struct Tab{
     /// derive from table.displayname()
     pub name:String,
@@ -453,6 +453,7 @@ impl Tab{
 /// TODO: should this include the identifier repo when serialized to the client side
 #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct Window{
     ///name of the window
     /// derive from  "{tab[0].displayname()}, tab[1].condense_name(tab[0].table) & tab[n].displayname()}"
@@ -551,34 +552,34 @@ fn window_tables(tables:&Vec<Table>)->Vec<&Table>{
     let all_extension_tables = get_all_extension_tables(tables);
     for t in tables{
         if t.is_linker_table(){
-            println!("NOT a Window: {} <<-linker table", t.name);
+            info!("NOT a Window: {} <<-linker table", t.name);
         }
         else{   
             if t.is_owned(tables){
-                println!("OWNED table: {}", t.name);
+                info!("OWNED table: {}", t.name);
             }
             else{
                 if all_extension_tables.contains(&t){
-                    println!("EXTENSION table: {}", t);
+                    info!("EXTENSION table: {}", t);
                 }
                 else{
-                    println!("{}", t.name);
+                    info!("{}", t.name);
                     window_tables.push(t);
                     for (col, has1) in t.referred_tables(tables){
-                        println!("\t has one: {} -> {}", col.condense_name(), has1);
+                        info!("\t has one: {} -> {}", col.condense_name(), has1);
                     }
                     for ext in t.extension_tables(tables){
-                        println!("\t ext tab: {} [{}]", ext.name, ext.condensed_displayname(t));
+                        info!("\t ext tab: {} [{}]", ext.name, ext.condensed_displayname(t));
                     }
                     for (has_many, column) in t.referring_tables(tables){
                         if !has_many.is_linker_table(){
-                            println!("\t has many direct: {} [{}] via column: {}", has_many.name, has_many.condensed_displayname(t), column.name);
+                            info!("\t has many direct: {} [{}] via column: {}", has_many.name, has_many.condensed_displayname(t), column.name);
                         }else{
                             //println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
                         }
                     }
                     for (has_many,linker) in t.indirect_referring_tables(tables){
-                        println!("\t has many INDIRECT: {}[{}], via {}",has_many.name, has_many.condensed_displayname(t), linker.name);
+                        info!("\t has many INDIRECT: {}[{}], via {}",has_many.name, has_many.condensed_displayname(t), linker.name);
                     }
                 }
             }
@@ -595,7 +596,7 @@ pub fn extract_windows(tables:&Vec<Table>)->Vec<Window>{
     let window_tables = window_tables(tables);
     let mut all_windows = vec![];
     for wt in window_tables{
-        println!("{}", wt);
+        info!("{}", wt);
         let window = Window::from_table(&wt, tables);
         all_windows.push(window);
     }
@@ -611,7 +612,7 @@ fn get_all_extension_tables(tables:&Vec<Table>)->Vec<&Table>{
     for t in tables{
         for ext in t.extension_tables(tables){
             if !all_extension_tables.contains(&ext){
-                println!("extension table: {}", ext);
+                info!("extension table: {}", ext);
                 all_extension_tables.push(ext);
             }
         }
