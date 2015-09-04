@@ -1,23 +1,23 @@
 [package]
 name = "curtain"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["jcesar <jovansonlee.cesar@truste.com>"]
 
 
 [[bin]]
 name = "iron_curtain"
 
-#[dependencies.rustorm]
-#git = "https://github.com/ivanceras/rustorm.git"
-
 [dependencies.rustorm]
-path = "../rustorm"
+git = "https://github.com/ivanceras/rustorm.git"
 
-#[dependencies.codegenta]
-#git = "https://github.com/ivanceras/codegenta.git"
+#[dependencies.rustorm]
+#path = "../rustorm"
 
 [dependencies.codegenta]
-path = "../codegenta"
+git = "https://github.com/ivanceras/codegenta.git"
+
+#[dependencies.codegenta]
+#path = "../codegenta"
 
 
 [dependencies]
