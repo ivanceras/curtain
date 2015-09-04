@@ -10,7 +10,7 @@ use codegenta::generator;
 use rustorm::database::DatabaseDev;
 use rustorm::query::TableName;
 use window::{self, Window};
-use global::AppDb;
+//use global::AppDb;
 use global::CachePool;
 use rustorm::table::Table;
 use global::DatabasePool;
@@ -90,49 +90,42 @@ pub fn list_window_api(req: &mut Request, db_dev:&DatabaseDev)->Result<Vec<Windo
 }
 
 pub fn get_window(req: &mut Request) -> IronResult<Response> {
-        //let db = DatabasePool::get_connection(req);
-    let pool = req.get::<Read<AppDb>>().unwrap();
+    let db = DatabasePool::get_connection(req);
+    //let pool = req.get::<Read<AppDb>>().unwrap();
     let table_name = match req.extensions.get::<Router>().unwrap().find("table"){
         Some(table_name) => Some(table_name.to_string()),
         None => None
     };
     match table_name{
         Some(ref table_name) => {
-            let db = pool.connect();
+            //let db = pool.connect();
             match db {
                 Ok(db) => {
                     match retrieve_window_api(req, db.as_dev(), table_name){
                         Ok(window) => {
                             let encoded = json::encode(&window);
-                            let mut response = Response::with((status::Ok, encoded.unwrap()));
-                            response.headers.set(AccessControlAllowOrigin::Any);
-                            return Ok(response)
+                            return create_response(status::Ok, &encoded.unwrap());
                         },
                         Err(e) => {
-                            let mut response = Response::with((status::BadRequest, e));
-                            response.headers.set(AccessControlAllowOrigin::Any);
-                            return Ok(response)
+                            return create_response(status::BadRequest, &format!("{}",e));
                         }
                     }
                 },
                 Err(e) => {
-                    let mut response = Response::with((status::BadRequest, "Unable to connect to database"));
-                    response.headers.set(AccessControlAllowOrigin::Any);
-                    return Ok(response)
+                    return create_response(status::BadRequest, "Unable to connect to database");
                 }
             }
             
             
         },
         None =>{
-             //return Ok(Response::with((status::BadRequest, "No table specified")))
              return create_response(status::BadRequest, "No table specified")
         }
     }
 }
 
-
-fn create_response(status: Status, content: &str)->IronResult<Response>{
+/// TODO: make this a generic library function for reducing boilerplates
+pub fn create_response(status: Status, content: &str)->IronResult<Response>{
     let mut response = Response::with((status, content));
     response.headers.set(AccessControlAllowOrigin::Any);
     response.headers.set(AccessControlAllowHeaders(vec![
@@ -152,29 +145,23 @@ pub fn preflight(req :&mut Request)->IronResult<Response>{
     return Ok(response)
 }
 pub fn list_window(req: &mut Request) -> IronResult<Response> {
-    //let db = DatabasePool::get_connection(req);
-    let pool = req.get::<Read<AppDb>>().unwrap();
-    let db = pool.connect();
+    let db = DatabasePool::get_connection(req);
+    //let pool = req.get::<Read<AppDb>>().unwrap();
+    //let db = pool.connect();
     match db {
         Ok(db) => {
             match list_window_api(req, db.as_dev()){
                 Ok(window_list) => {
                     let encoded = json::encode(&window_list);
-                    let mut response = Response::with((status::Ok, encoded.unwrap()));
-                    response.headers.set(AccessControlAllowOrigin::Any);
-                    return Ok(response)
+                    return create_response(status::Ok, &encoded.unwrap());
                 },
                 Err(e) => {
-                    let mut response = Response::with((status::BadRequest, e));
-                    response.headers.set(AccessControlAllowOrigin::Any);
-                    return Ok(response)
+                    return create_response(status::BadRequest, &format!("{}",e));
                 }
             }
         },
         Err(e) => {
-            let mut response = Response::with((status::Ok, "Can not create database connection"));
-            response.headers.set(AccessControlAllowOrigin::Any);
-            return Ok(response)
+            return create_response(status::BadRequest, "Can not create database connection");
         }
     }
 }

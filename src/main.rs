@@ -27,7 +27,7 @@ use persistent::{Write,Read};
 use rustc_serialize::json::{self,ToJson};
 use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
-use global::AppDb;
+//use global::AppDb;
 use global::SessionHash;
 use global::CachePool;
 use global::DatabasePool;
@@ -61,9 +61,9 @@ fn show_db_url(req: &mut Request) -> IronResult<Response> {
 fn main() {
     env_logger::init().unwrap();
     info!("starting up");
-    let url = get_db_url();
-    println!("using: {}",url);
-    let pool = ManagedPool::init(&url, 10);
+//    let url = get_db_url();
+//    println!("using: {}",url);
+//    let pool = ManagedPool::init(&url, 10);
     
     let mut router = Router::new();
     router
@@ -75,10 +75,10 @@ fn main() {
         .options("/window/:table", window_service::preflight)
         .get("/data/:table",data_service::get_data)
         .options("/data/:table",window_service::preflight)
-        //.post("/db",data_service::set_db_url)
+        .post("/db",data_service::set_db_url)
         ;
     let mut middleware = Chain::new(router);
-    middleware.link(Read::<AppDb>::both(pool));  
+//    middleware.link(Read::<AppDb>::both(pool));  
     middleware.link(Write::<DatabasePool>::both(DatabasePool::new()));
     middleware.link(Write::<SessionHash>::both(SessionHash::new()));
     middleware.link(Write::<CachePool>::both(CachePool::new()));
@@ -92,10 +92,10 @@ fn get_server_port() -> u16 {
     FromStr::from_str(&port_str).unwrap_or(8080)
 }
 
-fn get_db_url()->String{
-    let default = "postgres://postgres:p0stgr3s@localhost/bazaar_v7";
-    match env::var("DATABASE_URL") {
-        Ok(val) => val,
-        Err(_) => default.to_string()
-    }
-}
+//fn get_db_url()->String{
+//    let default = "postgres://postgres:p0stgr3s@localhost/bazaar_v7";
+//    match env::var("DATABASE_URL") {
+//        Ok(val) => val,
+//        Err(_) => default.to_string()
+//    }
+//}

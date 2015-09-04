@@ -14,8 +14,8 @@ use queryst;
 use rustc_serialize::json::{self,ToJson,DecodeResult};
 use rustorm::pool::Platform;
 
-pub struct AppDb;
-impl Key for AppDb { type Value = ManagedPool; }
+//pub struct AppDb;
+//impl Key for AppDb { type Value = ManagedPool; }
 
 /// a list of managed pool for each db_url
 pub struct DatabasePool{
@@ -41,8 +41,9 @@ impl DatabasePool{
     fn set(&mut self, db_url :&str,pool: ManagedPool)->Option<ManagedPool>{
         self.map.insert(db_url.to_string(), pool)
     }
-    /// put the extracted tables into this cache, accessible by the db_url key
-    fn create_database_pool(req: &mut Request){
+    
+    /// TODO: supply the db_url here to make this extensible and reusable
+    pub fn get_connection(req: &mut Request)->Result<Platform, String>{
         let db_url = SessionHash::get_db_url(req);
         match db_url{
             Some(db_url) => {
@@ -52,114 +53,33 @@ impl DatabasePool{
                 };
                 let mut db_pool = db_pool.lock().unwrap();
                 
-                let has_pool = match db_pool.get_ref(&db_url){
+                let platform = match db_pool.get_ref(&db_url){
                     Some(ref mut pool) => {
-                        warn!("Already have database pool for {}", db_url);
-                        true
+                        Some(pool.connect())
                     },
                     None => {
-                        false
-                    }
-                };
-                if !has_pool{
-                    let pool = ManagedPool::init(&db_url, 1);
-                    db_pool.set(&db_url, pool);
-                }
-            }, 
-            None => {
-                error!("No db_url supplied in the request.. cant create a database pool")
-            }
-        }
-        
-    }
-    
-    /// put the extracted tables into this cache, accessible by the db_url key
-    fn put_back_managed_pool(req: &mut Request, pool: ManagedPool){
-        let db_url = SessionHash::get_db_url(req);
-        match db_url{
-            Some(db_url) => {
-                let db_pool = match req.get_mut::<Write<DatabasePool>>(){
-                    Ok(db_pool) => db_pool,
-                    Err(e) => panic!("Error reading db_pool {:?}", e)
-                };
-                let mut db_pool = db_pool.lock().unwrap();
-                
-                let has_pool = match db_pool.get_ref(&db_url){
-                    Some(ref pool) => {
-                        warn!("Overwriting database pool for{}", db_url);
-                        true
-                    },
-                    None => {
-                        false
-                    }
-                };
-                info!("Putting back database pool to the container...");
-                db_pool.set(&db_url, pool);
-            }, 
-            None => {
-                panic!("No db_url supplied in the request")
-            }
-        }
-        
-    }
-    
-    fn get_database_pool(req: &mut Request)->Option<ManagedPool>{
-        let db_url = SessionHash::get_db_url(req);
-        match db_url{
-            Some(db_url) => {
-                let db_pool = match req.get_ref::<Write<DatabasePool>>(){
-                    Ok(db_pool) => db_pool,
-                    Err(e) => panic!("Error reading cache pool {:?}", e)
-                };
-                match db_pool.lock().unwrap().take(&db_url){
-                    Some(pool) => {
-                        return Some(pool);
-                    },
-                    None => {
-                        warn!("No database pool");
                         None
                     }
+                };
+                if platform.is_none(){
+                    let pool = ManagedPool::init(&db_url, 1); //give 10 initial connection
+                    match pool{
+                        Ok(pool) => {
+                            let con = pool.connect();
+                            db_pool.set(&db_url, pool);
+                            return con;
+                        },
+                        Err(e) => Err(format!("{}", e))
+                    }
+                }else{
+                    return platform.unwrap();
                 }
             }, 
             None => {
-                error!("No db_url specified");
-                None
+                error!("No db_url supplied in the request.. cant create a database pool");
+                Err("No db_url supplied in the request.. cant create a database pool".to_string())
             }
         }
-        
-    }
-    
-    fn get_db_pool(req: &mut Request)->Option<ManagedPool>{
-        let pool = DatabasePool::get_database_pool(req);
-        if pool.is_some(){
-            info!("has matching database pool");
-            return pool
-        }else{
-            warn!("No matching database pool ... creating one..");
-            DatabasePool::create_database_pool(req);
-            let new_pool = DatabasePool::get_database_pool(req);
-            if new_pool.is_some(){
-                return new_pool
-            }
-            error!("Unable to create database pool");
-            None
-        }
-        
-    }
-    
-    pub fn get_connection(req: &mut Request)->Result<Platform, String>{
-        let pool = DatabasePool::get_db_pool(req);
-        match pool{
-            Some(pool) => {
-                let db = pool.connect();
-                DatabasePool::put_back_managed_pool(req, pool);
-                db
-            },
-            None => {
-                Err("Unable to connect to database".to_string())
-            }
-        }
-        
     }
 }
 
@@ -170,8 +90,6 @@ pub struct Cache{
     windows: Vec<Window>,
     /// tables extraction is an expensive operation and doesn't change very often
     tables: Vec<Table>,
-    /// database pool are also shared
-    pool: Option<ManagedPool>,
 }
 
 
@@ -231,7 +149,6 @@ impl CachePool{
                     let cache = Cache{
                                 tables: vec![],
                                 windows: windows,
-                                pool: None,
                             };
                     cache_pool.set(&db_url, cache);
                 }
@@ -266,7 +183,6 @@ impl CachePool{
                     let cache = Cache{
                                 tables: tables,
                                 windows: vec![],
-                                pool: None,
                             };
                     cache_pool.set(&db_url, cache);
                 }
@@ -404,13 +320,16 @@ impl SessionHash{
                 let key = String::from_utf8(first.clone()).unwrap();
                 Some(key)
             },
-            None => None
+            None => {
+                error!("unable to get url from {:?}", db_url);
+                None
+            }
         }
     }
     
     /// get the database url used for this session
     /// TODO: seems like, if getting a reference other than Write cant get the shared value
-    pub fn get_db_url_from_session(req: &mut Request)->Option<String>{
+    fn get_db_url_from_session(req: &mut Request)->Option<String>{
        let key = SessionHash::get_session_key(req);
         match key{
             Some(key) => {

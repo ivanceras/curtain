@@ -2,16 +2,17 @@ use iron::status;
 use router::Router;
 use iron::prelude::*;
 use iron::headers::*;
-use persistent::Read as PRead;
 use rustc_serialize::json::{self};
 
 use rustorm::database::Database;
-use rustorm::dao::{DaoResult, SerDaoResult};
+use rustorm::dao::{SerDaoResult};
 use rustorm::database::DbError;
 use rustorm::query::Query;
-use global::AppDb;
+//use global::AppDb;
 use global::SessionHash;
 use std::io::Read;
+use global::DatabasePool;
+use window_service;
 
 pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDaoResult, DbError>{
     let mut query = Query::select_all();
@@ -25,38 +26,35 @@ pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDa
 }
 
 pub fn get_data(req: &mut Request) -> IronResult<Response> {
-    let pool = req.get::<PRead<AppDb>>().unwrap();
+//    let pool = req.get::<PRead<AppDb>>().unwrap();
+    let db = DatabasePool::get_connection(req);
     let table_name = req.extensions.get::<Router>().unwrap().find("table");
     let page_size = 20;
     println!("query: {:?}", req.url.query);
     match table_name{
         Some(ref table_name) => {
             println!("table_name: {:?}", table_name);
-            let db = pool.connect();
+//            let db = pool.connect();
             match db {
                 Ok(db) => {
                     let data = retrieve_data(db.as_ref(), table_name, page_size);
                     match data{
                         Ok(data) => {
                                 let encoded = json::encode(&data);
-                                let mut response = Response::with((status::Ok, encoded.unwrap()));
-                                response.headers.set(AccessControlAllowOrigin::Any);
-                                return Ok(response)                                
+                                return window_service::create_response(status::Ok, &encoded.unwrap());
                             },
                         Err(e) => {
-                                let mut response = Response::with((status::BadRequest, format!("{}",e)));
-                                response.headers.set(AccessControlAllowOrigin::Any);
-                                return Ok(response)
+                                return window_service::create_response(status::BadRequest, &format!("{}",e));
                             }
                     }
                 },
-                Err(e) => return Ok(Response::with((status::BadRequest, "Unable to connect to database")))
+                Err(e) => return window_service::create_response(status::BadRequest, "Unable to connect to database")
             }
             
             
         },
         None =>{
-             return Ok(Response::with((status::BadRequest, "No table specified")))
+             return window_service::create_response(status::BadRequest, "No table specified")
         }
     }
 }
@@ -68,7 +66,5 @@ pub fn set_db_url(req: &mut Request) -> IronResult<Response> {
     println!("content: {}",content);
     let db_url = content;
     SessionHash::set_db_url(req, &db_url);
-    let mut response = Response::with((status::Ok, "Ok"));
-    response.headers.set(AccessControlAllowOrigin::Any);
-    return Ok(response)
+    return window_service::create_response(status::Ok, "Ok");
 }
