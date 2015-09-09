@@ -69,3 +69,6 @@ git remote show heroku
 
 ## Run the project with loggin
 reset && cargo build --release && reset && RUST_LOG=iron_curtain=debug cargo run --release
+
+
+postgres://postgres:p0stgr3s@localhost:5432/bazaar_v7

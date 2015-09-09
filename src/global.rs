@@ -1,8 +1,5 @@
-use iron::status;
-use router::Router;
 use iron::prelude::*;
-use iron::headers::*;
-use persistent::{Read, Write, State};
+use persistent::{Write};
 use rand::{thread_rng, Rng};
 
 use rustorm::pool::ManagedPool;
@@ -10,12 +7,8 @@ use iron::typemap::Key;
 use window::Window;
 use rustorm::table::Table;
 use std::collections::BTreeMap;
-use queryst;
-use rustc_serialize::json::{self,ToJson,DecodeResult};
 use rustorm::pool::Platform;
 
-//pub struct AppDb;
-//impl Key for AppDb { type Value = ManagedPool; }
 
 /// a list of managed pool for each db_url
 pub struct DatabasePool{
@@ -35,45 +28,45 @@ impl DatabasePool{
         self.map.get(db_url)
     }
     
-    fn take(&mut self, db_url: &str)->Option<ManagedPool>{
-        self.map.remove(db_url)
-    }
     fn set(&mut self, db_url :&str,pool: ManagedPool)->Option<ManagedPool>{
         self.map.insert(db_url.to_string(), pool)
     }
     
-    /// TODO: supply the db_url here to make this extensible and reusable
+    fn connect(req: &mut Request, db_url: &str)->Result<Platform, String>{
+        let db_pool = match req.get_mut::<Write<DatabasePool>>(){
+            Ok(db_pool) => db_pool,
+            Err(e) => panic!("Error reading db_pool {:?}", e)
+        };
+        let mut db_pool = db_pool.lock().unwrap();
+        
+        let platform = match db_pool.get_ref(&db_url){
+            Some(ref mut pool) => {
+                Some(pool.connect())
+            },
+            None => {
+                None
+            }
+        };
+        if platform.is_none(){
+            let pool = ManagedPool::init(&db_url, 1); //give 10 initial connection
+            match pool{
+                Ok(pool) => {
+                    let con = pool.connect();
+                    db_pool.set(&db_url, pool);
+                    return con;
+                },
+                Err(e) => Err(format!("{}", e))
+            }
+        }else{
+            return platform.unwrap();
+        }
+    }
+    
     pub fn get_connection(req: &mut Request)->Result<Platform, String>{
         let db_url = SessionHash::get_db_url(req);
         match db_url{
-            Some(db_url) => {
-                let db_pool = match req.get_mut::<Write<DatabasePool>>(){
-                    Ok(db_pool) => db_pool,
-                    Err(e) => panic!("Error reading db_pool {:?}", e)
-                };
-                let mut db_pool = db_pool.lock().unwrap();
-                
-                let platform = match db_pool.get_ref(&db_url){
-                    Some(ref mut pool) => {
-                        Some(pool.connect())
-                    },
-                    None => {
-                        None
-                    }
-                };
-                if platform.is_none(){
-                    let pool = ManagedPool::init(&db_url, 1); //give 10 initial connection
-                    match pool{
-                        Ok(pool) => {
-                            let con = pool.connect();
-                            db_pool.set(&db_url, pool);
-                            return con;
-                        },
-                        Err(e) => Err(format!("{}", e))
-                    }
-                }else{
-                    return platform.unwrap();
-                }
+            Some(ref db_url) => {
+                DatabasePool::connect(req, db_url)
             }, 
             None => {
                 error!("No db_url supplied in the request.. cant create a database pool");

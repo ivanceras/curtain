@@ -26,7 +26,7 @@ git remote show heroku
 ``` 
 
 git remote set-url heroku git@heroku.com:iron-curtain.git
-
+git remote set-url origin git@gitlab.com:ivanceras/curtain.git
 ```
 
 

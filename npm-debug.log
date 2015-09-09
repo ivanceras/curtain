@@ -1,0 +1,83 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/home/lee/local/bin/node',
+1 verbose cli   '/home/lee/local/bin/npm',
+1 verbose cli   'install',
+1 verbose cli   'v4.0.0' ]
+2 info using npm@2.11.3
+3 info using node@v0.12.7
+4 verbose install initial load of /home/lee/Dropbox/git-src/ivanceras/curtain/package.json
+5 verbose readDependencies loading dependencies from /home/lee/Dropbox/git-src/ivanceras/curtain/package.json
+6 silly cache add args [ 'v4.0.0', null ]
+7 verbose cache add spec v4.0.0
+8 silly cache add parsed spec { raw: 'v4.0.0',
+8 silly cache add   scope: null,
+8 silly cache add   name: 'v4.0.0',
+8 silly cache add   rawSpec: '',
+8 silly cache add   spec: '*',
+8 silly cache add   type: 'range' }
+9 silly addNamed v4.0.0@*
+10 verbose addNamed "*" is a valid semver range for v4.0.0
+11 silly addNameRange { name: 'v4.0.0', range: '*', hasData: false }
+12 silly mapToRegistry name v4.0.0
+13 silly mapToRegistry using default registry
+14 silly mapToRegistry registry https://registry.npmjs.org/
+15 silly mapToRegistry uri https://registry.npmjs.org/v4.0.0
+16 verbose addNameRange registry:https://registry.npmjs.org/v4.0.0 not in flight; fetching
+17 verbose request uri https://registry.npmjs.org/v4.0.0
+18 verbose request no auth needed
+19 info attempt registry request try #1 at 04:33:32
+20 verbose request id ae1db9e8086a56a3
+21 http request GET https://registry.npmjs.org/v4.0.0
+22 http 404 https://registry.npmjs.org/v4.0.0
+23 verbose headers { 'content-type': 'application/json',
+23 verbose headers   'cache-control': 'max-age=0',
+23 verbose headers   'content-length': '2',
+23 verbose headers   'accept-ranges': 'bytes',
+23 verbose headers   date: 'Tue, 08 Sep 2015 20:33:33 GMT',
+23 verbose headers   via: '1.1 varnish',
+23 verbose headers   age: '0',
+23 verbose headers   connection: 'keep-alive',
+23 verbose headers   'x-served-by': 'cache-lax1423-LAX',
+23 verbose headers   'x-cache': 'MISS',
+23 verbose headers   'x-cache-hits': '0',
+23 verbose headers   'x-timer': 'S1441744413.116619,VS0,VE79' }
+24 silly get cb [ 404,
+24 silly get   { 'content-type': 'application/json',
+24 silly get     'cache-control': 'max-age=0',
+24 silly get     'content-length': '2',
+24 silly get     'accept-ranges': 'bytes',
+24 silly get     date: 'Tue, 08 Sep 2015 20:33:33 GMT',
+24 silly get     via: '1.1 varnish',
+24 silly get     age: '0',
+24 silly get     connection: 'keep-alive',
+24 silly get     'x-served-by': 'cache-lax1423-LAX',
+24 silly get     'x-cache': 'MISS',
+24 silly get     'x-cache-hits': '0',
+24 silly get     'x-timer': 'S1441744413.116619,VS0,VE79' } ]
+25 verbose stack Error: Registry returned 404 for GET on https://registry.npmjs.org/v4.0.0
+25 verbose stack     at CachingRegistryClient.<anonymous> (/home/lee/local/lib/node_modules/npm/node_modules/npm-registry-client/lib/request.js:239:14)
+25 verbose stack     at Request._callback (/home/lee/local/lib/node_modules/npm/node_modules/npm-registry-client/lib/request.js:170:14)
+25 verbose stack     at Request.self.callback (/home/lee/local/lib/node_modules/npm/node_modules/request/request.js:354:22)
+25 verbose stack     at Request.emit (events.js:110:17)
+25 verbose stack     at Request.<anonymous> (/home/lee/local/lib/node_modules/npm/node_modules/request/request.js:1207:14)
+25 verbose stack     at Request.emit (events.js:129:20)
+25 verbose stack     at IncomingMessage.<anonymous> (/home/lee/local/lib/node_modules/npm/node_modules/request/request.js:1153:12)
+25 verbose stack     at IncomingMessage.emit (events.js:129:20)
+25 verbose stack     at _stream_readable.js:908:16
+25 verbose stack     at process._tickCallback (node.js:355:11)
+26 verbose statusCode 404
+27 verbose pkgid v4.0.0
+28 verbose cwd /home/lee/Dropbox/git-src/ivanceras/curtain
+29 error Linux 3.13.0-63-generic
+30 error argv "/home/lee/local/bin/node" "/home/lee/local/bin/npm" "install" "v4.0.0"
+31 error node v0.12.7
+32 error npm  v2.11.3
+33 error code E404
+34 error 404 Registry returned 404 for GET on https://registry.npmjs.org/v4.0.0
+34 error 404
+34 error 404 'v4.0.0' is not in the npm registry.
+34 error 404 You should bug the author to publish it (or use the name yourself!)
+34 error 404
+34 error 404 Note that you can also install from a
+34 error 404 tarball, folder, http url, or git url.
+35 verbose exit [ 1, true ]

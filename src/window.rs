@@ -232,9 +232,9 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs:ext_tabs,
-            has_many_tabs:has_many_tabs,
-            has_many_indirect_tabs:has_many_indirect_tabs,
+            ext_tabs: ext_tabs,
+            has_many_tabs: has_many_tabs,
+            has_many_indirect_tabs: has_many_indirect_tabs,
             logo:None,
             icon:None,
             page_size:None,
@@ -504,17 +504,17 @@ impl Window{
     ///    they identifier value of the matching primary value will be displayed on the field
     ///    has_one table values are extracted with another query, the correct value is marked with is_chosen = true
     /// 
-    /// * ext_tabs
+    /// * ext_tabs 1:1
     ///    extension tabs table values are extracted as a normal tab itself.
     ///    extension tables are extracted using left join
     /// 
-    ///  * has_many direct  
+    ///  * has_many direct  1:M
     ///      has_many direct tables are extracted using another query
     ///      the enumerated columns is based on the is_displayed field
     ///      the records of the fields that are drop down will still be all retrieved since the user can 
     ///      alter these values, the selected value will is based on the id of the table
     ///
-    //// * has_many indirect
+    //// * has_many indirect M:N
     ///     has_many indirect tables are extracted using dual left joins
     ///     the main table is left join to the direct table left joining the indirect table.
     ///
