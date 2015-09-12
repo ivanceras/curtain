@@ -10,6 +10,7 @@ extern crate rand;
 #[macro_use]extern crate log;
 extern crate env_logger;
 extern crate unicase;
+extern crate uuid;
 
 pub mod window;
 pub mod reference;

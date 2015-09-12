@@ -11,6 +11,7 @@ extern crate rand;
 #[macro_use]extern crate log;
 extern crate env_logger;
 extern crate unicase;
+extern crate uuid;
 
 use iron::status;
 use router::Router;

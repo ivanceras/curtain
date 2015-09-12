@@ -8,6 +8,7 @@ use window::Window;
 use rustorm::table::Table;
 use std::collections::BTreeMap;
 use rustorm::pool::Platform;
+use rustorm::database::DbError;
 
 
 /// a list of managed pool for each db_url
@@ -32,7 +33,7 @@ impl DatabasePool{
         self.map.insert(db_url.to_string(), pool)
     }
     
-    fn connect(req: &mut Request, db_url: &str)->Result<Platform, String>{
+    fn connect(req: &mut Request, db_url: &str)->Result<Platform, DbError>{
         let db_pool = match req.get_mut::<Write<DatabasePool>>(){
             Ok(db_pool) => db_pool,
             Err(e) => panic!("Error reading db_pool {:?}", e)
@@ -55,14 +56,14 @@ impl DatabasePool{
                     db_pool.set(&db_url, pool);
                     return con;
                 },
-                Err(e) => Err(format!("{}", e))
+                Err(e) => Err(DbError::new(&format!("{}", e)))
             }
         }else{
             return platform.unwrap();
         }
     }
     
-    pub fn get_connection(req: &mut Request)->Result<Platform, String>{
+    pub fn get_connection(req: &mut Request)->Result<Platform, DbError>{
         let db_url = SessionHash::get_db_url(req);
         match db_url{
             Some(ref db_url) => {
@@ -70,7 +71,7 @@ impl DatabasePool{
             }, 
             None => {
                 error!("No db_url supplied in the request.. cant create a database pool");
-                Err("No db_url supplied in the request.. cant create a database pool".to_string())
+                Err(DbError::new("No db_url supplied in the request.. cant create a database pool"))
             }
         }
     }
