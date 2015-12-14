@@ -7,38 +7,38 @@ authors = ["jcesar <jovansonlee.cesar@truste.com>"]
 [[bin]]
 name = "iron_curtain"
 
-[dependencies.rustorm]
-git = "https://github.com/ivanceras/rustorm.git"
+
+
+
+[dependencies]
+rustc-serialize = "0.3.16"
+uuid = "0.1.18"
+iron = "0.2.6"
+mount = "0.0.9"
+router = "0.0.15"
+persistent = "0.0.8"
+rand = "0.3.12"
+log = "0.3.4"
+env_logger = "0.3.2"
+unicase = "1.1.0"
+rustorm = "0.3.2"
+codegenta = "0.0.5"
+queryst = "0.1.16"
+inquerest = "0.0.6"
+
+[dependencies.chrono]
+version = "0.2.17"
+features = ["rustc-serialize"]
+
+[dependencies.arm_rest]
+path = "../armrest"
 
 #[dependencies.rustorm]
 #path = "../rustorm"
-
-[dependencies.codegenta]
-git = "https://github.com/ivanceras/codegenta.git"
 
 #[dependencies.codegenta]
 #path = "../codegenta"
 
 
-[dependencies]
-rustc-serialize = "*"
-uuid = "*"
-iron = "*"
-mount = "*"
-router = "*"
-persistent = "*"
-queryst = "*"
-rand = "*"
-log = "*"
-env_logger = "*"
-unicase = "*"
-#rustorm = "*"
-#codegenta = "*"
-
-[dependencies.chrono]
-version = "*"
-features = ["rustc-serialize"]
 
 
-[dependencies.staticfile]
-git = "https://github.com/iron/staticfile.git"
