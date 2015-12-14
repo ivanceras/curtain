@@ -10,7 +10,6 @@ use rustorm::query::Query;
 use global::SessionHash;
 use std::io::Read;
 use global::DatabasePool;
-use response;
 use window_service;
 use std::collections::BTreeMap;
 use rustorm::table::{Table, Column};
@@ -22,16 +21,20 @@ use queryst;
 use data_service;
 use inquerest;
 use data_service::from_query::FromQuery;
+use iron::status::Status;
 
 
 pub fn data_query(req: &mut Request)->IronResult<Response>{
-	let table_name = req.extensions.get::<Router>().unwrap().find("table");
+	let db = DatabasePool::get_connection(req).unwrap();
+	let table_name = req.extensions.get::<Router>().unwrap().find("table").unwrap();
 	let param = req.url.query.as_ref().unwrap();
 	let iq = inquerest::query(&param).unwrap();
 	//FIXME: do necessary security here to check validity of query params
 	let query = iq.transform();
 	println!("query:{:#?}",query);
-	panic!("ongoing!");
+	let result = data_service::data_json::retrieve_data_from_query(db.as_ref(), table_name, &iq);
+	let  response = Response::with((Status::Ok, result));
+	Ok(response)
 }
 
 pub fn get_data(req: &mut Request) -> IronResult<Response> {
@@ -48,20 +51,20 @@ pub fn get_data(req: &mut Request) -> IronResult<Response> {
                     match data{
                         Ok(data) => {
                                 let encoded = json::encode(&data);
-                                return response::create_response(status::Ok, &encoded.unwrap());
+                                return Ok(Response::with((status::Ok, encoded.unwrap())));
                             },
                         Err(e) => {
-                                return response::create_response(status::BadRequest, &format!("{}",e));
+                                return Ok(Response::with((status::BadRequest, format!("{}",e))));
                             }
                     }
                 },
-                Err(e) => return response::create_response(status::BadRequest, "Unable to connect to database")
+                Err(e) => return Ok(Response::with((status::BadRequest, "Unable to connect to database")))
             }
             
             
         },
         None =>{
-             return response::create_response(status::BadRequest, "No table specified")
+             return Ok(Response::with((status::BadRequest, "No table specified")))
         }
     }
 }
@@ -79,18 +82,18 @@ pub fn table_detail(req: &mut Request) -> IronResult<Response> {
         }
     };
     if arg_table.is_none(){
-        return response::create_response(status::BadRequest, "No table specified")
+        return Ok(Response::with((status::BadRequest, "No table specified")))
     }
     let page_size = 20;//page will be sent in the range header
     println!("table: {:?}", arg_table);
     let db = DatabasePool::get_connection(req);
     match db{
-        Err(e) => response::create_response(status::BadRequest, "Unable to connect to Database"),
+        Err(e) => Ok(Response::with((status::BadRequest, "Unable to connect to Database"))),
         Ok(db) => {
             let arg_table = arg_table.unwrap();
             let window = window_service::retrieve_window_api(req, db.as_dev(), &arg_table);
             match window{
-                Err(e) => response::create_response(status::BadRequest, "No table with that name"),
+                Err(e) => Ok(Response::with((status::BadRequest, "No table with that name"))),
                 Ok(window) => {
                     println!("query: {:?}", req.url.query);
 
@@ -103,11 +106,11 @@ pub fn table_detail(req: &mut Request) -> IronResult<Response> {
                         }
                     };
                     match param{
-                        None => response::create_response(status::BadRequest, "no specific record specified"),
+                        None => Ok(Response::with((status::BadRequest, "no specific record specified"))),
                         Some(ref param) => {
                             let filter = queryst::parse(param);
                             match filter{
-                                Err(e) => response::create_response(status::BadRequest, "error parsing params"),
+                                Err(e) => Ok(Response::with((status::BadRequest, "error parsing params"))),
                                 Ok(filter) => {
                                     println!("filter: {:?}", filter);
                                     assert!(filter.is_object());
@@ -118,8 +121,8 @@ pub fn table_detail(req: &mut Request) -> IronResult<Response> {
                                             println!("valid column: {}", key);
                                         }else{
                                             println!("table {} has no column {}", table, key);
-                                            return response::create_response(status::BadRequest, 
-                                                &format!("table {} has no column {}", table, key))
+                                            return Ok(Response::with((status::BadRequest, 
+                                                format!("table {} has no column {}", table, key))))
                                         }
                                     }
                                     let tab = window.tab.unwrap();
@@ -148,7 +151,7 @@ pub fn table_detail(req: &mut Request) -> IronResult<Response> {
                                         println!("has_many_indirect_tabs: {}",indirect.table);
                                     }
                                     
-                                    response::create_response(status::Ok, &json::encode(&ext_results).unwrap())
+                                    Ok(Response::with((status::Ok, json::encode(&ext_results).unwrap())))
                                 },
                             }
                         },
@@ -167,5 +170,5 @@ pub fn set_db_url(req: &mut Request) -> IronResult<Response> {
     println!("content: {}",content);
     let db_url = content;
     SessionHash::set_db_url(req, &db_url);
-    return response::create_response(status::Ok, "Ok");
+    return Ok(Response::with((status::Ok, "Ok")));
 }

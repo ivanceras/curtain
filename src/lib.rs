@@ -20,5 +20,4 @@ pub mod identifier;
 pub mod table_info;
 mod global;
 mod window_service;
-mod response;
 pub mod data_service;

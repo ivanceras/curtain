@@ -10,7 +10,6 @@ use rustorm::query::Query;
 use global::SessionHash;
 use std::io::Read;
 use global::DatabasePool;
-use response;
 use window_service;
 use std::collections::BTreeMap;
 use rustorm::table::{Table, Column};
@@ -36,10 +35,12 @@ pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDa
 /// retrieve table record based on the query
 /// use the first record as the selected record
 /// then pull out the detail from other tables too
+/// this would join all other extension tables
 pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: &inquerest::Query)->Result<DaoResult, DbError>{	
-	let query:Query = iquery.transform();
-	panic!("not yet");
-
+	let mut query:Query = iquery.transform();
+	let ret = query.retrieve(db);
+	println!("ret: {:#?}" ,ret);
+	ret
 }
 
 /// build a join query for the this extension table

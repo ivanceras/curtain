@@ -60,8 +60,9 @@ impl FromQuery for iq::Query {
                         q.set_page(page.page as usize);
                         q.set_page_size(page.page_size as usize);
                     },
-                    &iq::Range::Limit(_) => {
-                        unimplemented!();
+                    &iq::Range::Limit(ref limit) => {
+						q.limit(limit.limit as usize);
+						q.set_page_size(limit.offset.unwrap() as usize);
                     }
                 }
             },

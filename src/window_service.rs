@@ -13,7 +13,6 @@ use global::CachePool;
 use rustorm::table::Table;
 use global::DatabasePool;
 use unicase::UniCase;
-use response;
 
 fn get_tables(req: &mut Request, db_dev:&DatabaseDev)->Vec<Table>{
     let tables = CachePool::get_cached_tables(req);
@@ -116,23 +115,23 @@ pub fn get_window(req: &mut Request) -> IronResult<Response> {
                 Ok(db) => {
                     match retrieve_window_api(req, db.as_dev(), table_name){
                         Ok(window) => {
-                            let encoded = json::encode(&window);
-                            return response::create_response(status::Ok, &encoded.unwrap());
+                            let encoded = json::encode(&window).unwrap();
+                            return Ok(Response::with((Status::Ok, encoded)));
                         },
                         Err(e) => {
-                            return response::create_response(status::BadRequest, &format!("{}",e));
+                            return Ok(Response::with((Status::BadRequest, format!("{}",e))));
                         }
                     }
                 },
                 Err(e) => {
-                    return response::create_response(status::BadRequest, "Unable to connect to database");
+                    return Ok(Response::with((status::BadRequest, "Unable to connect to database")));
                 }
             }
             
             
         },
         None =>{
-             return response::create_response(status::BadRequest, "No table specified")
+             return Ok(Response::with((Status::BadRequest, "No table specified")))
         }
     }
 }
@@ -144,16 +143,16 @@ pub fn list_window(req: &mut Request) -> IronResult<Response> {
         Ok(db) => {
             match list_window_api(req, db.as_dev()){
                 Ok(window_list) => {
-                    let encoded = json::encode(&window_list);
-                    return response::create_response(status::Ok, &encoded.unwrap());
+                    let encoded = json::encode(&window_list).unwrap();
+                    return Ok(Response::with((status::Ok, encoded)));
                 },
                 Err(e) => {
-                    return response::create_response(status::BadRequest, &format!("{}",e));
+                    return Ok(Response::with((status::BadRequest, format!("{}",e))));
                 }
             }
         },
         Err(e) => {
-            return response::create_response(status::BadRequest, "Can not create database connection");
+            return Ok(Response::with((status::BadRequest, "Can not create database connection")));
         }
     }
 }
