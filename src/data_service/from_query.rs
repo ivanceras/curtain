@@ -3,7 +3,7 @@ extern crate rustorm;
 
 use rustorm::query::{Query, Join, Filter, Condition, Connector, 
     Equality, Operand, ToTableName, Modifier, JoinType,
-    ColumnName, Function, Direction
+    ColumnName, Function, Direction, Range, Page, Limit
     };
 
 use rustorm::dao::Value;
@@ -54,18 +54,9 @@ impl FromQuery for iq::Query {
             q.order_by.push(o.transform());
         }
         match &self.range{
-            &Some(ref range) => {
-                match range{
-                    &iq::Range::Page(ref page) => {
-                        q.set_page(page.page as usize);
-                        q.set_page_size(page.page_size as usize);
-                    },
-                    &iq::Range::Limit(ref limit) => {
-						q.limit(limit.limit as usize);
-						q.set_page_size(limit.offset.unwrap() as usize);
-                    }
-                }
-            },
+			&Some(ref range) => {
+				q.range = Some(range.transform())
+			}
             &None => {}
         };
         q
@@ -85,6 +76,36 @@ impl FromOrder for iq::Order{
         };
         (self.column.to_owned(), direction)
     }
+}
+
+pub trait FromRange{
+	fn transform(&self)->Range;
+}
+
+impl FromRange for iq::Range{
+	fn transform(&self)->Range{
+		match self{
+			&iq::Range::Page(ref page) => {
+				Range::Page(
+					Page{
+						page: page.page as usize,
+						page_size: page.page_size as usize,
+					}
+				)
+			},
+			&iq::Range::Limit(ref limit) => {
+				Range::Limit(
+					Limit{
+						limit: limit.limit as usize,
+						offset: match limit.offset{ 
+									Some(offset) => Some(offset as usize),
+									None => None
+						}
+					}
+				)
+			}
+		}
+	}
 }
 
 pub trait FromConnector{
@@ -157,7 +178,7 @@ impl FromEquality for iq::Equality{
             iq::Equality::IN => Equality::IN,
             iq::Equality::NOT_IN => Equality::NOT_IN,
             iq::Equality::LIKE => Equality::LIKE,
-            iq::Equality::ILIKE => Equality::LIKE, //[FIXME]
+            iq::Equality::ILIKE => Equality::ILIKE, //
             iq::Equality::IS => Equality::IS_NULL, //[FIXME]
             iq::Equality::IS_NOT => Equality::IS_NOT_NULL, //[FIXME]
         }

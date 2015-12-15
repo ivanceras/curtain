@@ -15,9 +15,7 @@ extern crate inquerest;
 extern crate arm_rest;
 
 pub mod window;
-pub mod reference;
-pub mod identifier;
 pub mod table_info;
-mod global;
+pub mod global;
 mod window_service;
 pub mod data_service;

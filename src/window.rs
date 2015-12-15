@@ -4,7 +4,6 @@ use rustorm::table::Column;
 use std::collections::HashMap;
 use rustc_serialize::json;
 use rustorm::query::Query;
-use identifier::Identifier;
 use codegenta::generator;
 
 use rustorm::database::DatabaseDev;
@@ -435,18 +434,6 @@ impl Tab{
     }
     
     
-    /// build a query that extracts the identifier list of this table
-    fn build_query_for_identifier_list(&self)->Vec<Identifier>{
-        let mut q = Query::select();
-        q.from_table(&self.table);
-        
-        for field in &self.fields{
-            if field.is_identifier || field.is_keyfield {
-                q.column(&format!("{}.{}",self.table, field.column));
-            }
-        }
-        panic!("soon");
-    }
 }
 
 /// directly correspond to a table, no need for tabs
@@ -514,7 +501,7 @@ impl Window{
     ///      the records of the fields that are drop down will still be all retrieved since the user can 
     ///      alter these values, the selected value will is based on the id of the table
     ///
-    //// * has_many indirect M:N
+    /// * has_many indirect M:N
     ///     has_many indirect tables are extracted using dual left joins
     ///     the main table is left join to the direct table left joining the indirect table.
     ///

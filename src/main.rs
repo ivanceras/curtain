@@ -22,9 +22,7 @@ use iron::prelude::*;
 use persistent::{Write};
 use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
-use global::SessionHash;
-use global::CachePool;
-use global::DatabasePool;
+use global::GlobalPools;
 use iron::method::Method::*;
 use iron::AfterMiddleware;
 use unicase::UniCase;
@@ -41,15 +39,13 @@ mod data_service;
 fn say_hello(req: &mut Request) -> IronResult<Response> {
     println!("Running send_hello handler, URL path: {}", req.url.path.connect("/"));
     let mut response = Response::with((status::Ok, "This request was routed!"));
-    SessionHash::session_headers(req, &mut response);
     Ok(response)
 }
 
 fn show_db_url(req: &mut Request) -> IronResult<Response> {
-    let db_url = SessionHash::get_db_url(req);
+    let db_url = DatabasePool::get_db_url(req);
     let text = format!("db_url: {:?}", db_url);
     let mut response = Response::with((status::Ok, text));
-    SessionHash::session_headers(req, &mut response);
     Ok(response)
 }
 
@@ -68,12 +64,9 @@ fn main() {
         .get("/data/:table",data_service::data_http::get_data)
         .get("/data_query/:table",data_service::data_http::data_query)
         .get("/detail/:table",data_service::data_http::table_detail)
-        .post("/db",data_service::data_http::set_db_url)
         ;
     let mut middleware = Chain::new(router);
-    middleware.link(Write::<DatabasePool>::both(DatabasePool::new()));
-    middleware.link(Write::<SessionHash>::both(SessionHash::new()));
-    middleware.link(Write::<CachePool>::both(CachePool::new()));
+    middleware.link(Write::<GlobalPools>::both(GlobalPools::new()));
 	middleware.link_after(CORS);
     let host = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), get_server_port());
     println!("listening on http://{}", host);
