@@ -30,7 +30,6 @@ use iron::headers;
 
 mod window;
 mod window_service;
-mod identifier;
 mod global;
 mod data_service;
 
@@ -42,15 +41,6 @@ fn say_hello(req: &mut Request) -> IronResult<Response> {
     Ok(response)
 }
 
-fn show_db_url(req: &mut Request) -> IronResult<Response> {
-    let db_url = DatabasePool::get_db_url(req);
-    let text = format!("db_url: {:?}", db_url);
-    let mut response = Response::with((status::Ok, text));
-    Ok(response)
-}
-
-
-
 fn main() {
     env_logger::init().unwrap();
     info!("starting up");
@@ -58,12 +48,11 @@ fn main() {
     let mut router = Router::new();
     router
         .get("/", say_hello)
-        .get("/db_url", show_db_url)
-        .get("/window", window_service::list_window)
-        .get("/window/:table", window_service::get_window)
-        .get("/data/:table",data_service::data_http::get_data)
-        .get("/data_query/:table",data_service::data_http::data_query)
-        .get("/detail/:table",data_service::data_http::table_detail)
+        .get("/window", window_service::http_list_window)
+        .get("/window/:table", window_service::http_get_window)
+        .get("/data/:table",data_service::data_http::http_get_data)
+        .get("/data_query/:table",data_service::data_http::http_data_query)
+        .get("/detail/:table",data_service::data_http::http_table_detail)
         ;
     let mut middleware = Chain::new(router);
     middleware.link(Write::<GlobalPools>::both(GlobalPools::new()));

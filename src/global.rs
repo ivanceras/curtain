@@ -9,13 +9,13 @@ use rustorm::table::Table;
 use std::collections::BTreeMap;
 use rustorm::pool::Platform;
 use rustorm::database::DbError;
+use rustorm::database::Database;
+use std::sync::{Arc,Mutex};
 
 
-/// each db_url has its own connection pool, even when they are using the same db platform
-/// each db_url has its own cached values
+
 pub struct GlobalPools{
-	pub pool: BTreeMap<String, ManagedPool>,//connection pool indexed by db_url 
-	pub cache: BTreeMap<String, Cache>, //caches indexed by db_url
+	pub cache_map: BTreeMap<String, Cache>, //caches indexed by db_url
 }
 
 impl Key for GlobalPools{
@@ -27,73 +27,96 @@ impl GlobalPools{
 	/// initialize the pools
 	pub fn new()->Self{
 		GlobalPools{
-			pool: BTreeMap::new(),
-			cache: BTreeMap::new()
+			cache_map: BTreeMap::new()
 		}
 	}
 
-
+	pub fn from_request(req: &mut Request)->Arc<Mutex<Self>>{
+		let global = req.get::<Write<GlobalPools>>().unwrap();
+		global
+	}
 	
-	/// extract the globals from the Request
-	pub fn from_request<'a>(req: &'a Request)->Option<&'a Self>{
-		match req.get_ref::<Write<GlobalPools>>(){
-			Ok(ref globals) => {
-				Some(&*globals.lock().as_ref().unwrap())
-			},
-			Err(e) => panic!("Error reading from persistent {:?}", e)
-		}
+	pub fn has_cache(&self, db_url: &str)->bool{
+		self.cache_map.contains_key(db_url)
 	}
 	
 	pub fn get_cache(&self, db_url: &str)->Option<&Cache>{
-		self.cache.get(db_url)
-	}
-	pub fn get_pool(&self, db_url: &str)->Option<&ManagedPool>{
-		self.pool.get(db_url)
+		self.cache_map.get(db_url)
 	}
 
     /// cache this window values to this db_url
 	pub fn cache_windows(&mut self, db_url: &str, windows: Vec<Window>){
-		let cache = self.cache.remove(db_url);
-		match cache{
-			Some(cache) => {
-				let mut cache = cache.clone();
-				cache.windows = windows;
-				let ret = self.cache.insert(db_url.to_string(), cache);
-				if ret.is_none(){
-					println!("Cached!");
-				}else{
-					println!("not cached!");
-				}
-
-			},
-			None => {
-				let cache = Cache {windows: windows, tables: vec![]};
-				self.cache.insert(db_url.to_string(), cache);
-			}
+		if self.has_cache(db_url) {
+			let mut cache =  self.cache_map.remove(db_url).unwrap();
+			cache.set_windows(windows);
+			self.cache_map.insert(db_url.to_owned(), cache);
+		}
+		else{
+			let mut cache = Cache::new(db_url);
+			cache.set_windows(windows);
+			self.cache_map.insert(db_url.to_owned(), cache);
 		}
     }
 
+	pub fn get_connection(&mut self, db_url: &str)->Result<Platform, DbError>{
+		if self.has_cache(db_url){
+			let platform = self.get_cache(db_url).unwrap().get_connection();
+			Ok(platform)
+		}else{
+			let cache = Cache::new(db_url);
+			self.cache_map.insert(db_url.to_owned(), cache);
+			//try again
+			self.get_connection(db_url)
+		}
+	}
+
 
 	pub fn cache_tables(&mut self, db_url: &str, tables: Vec<Table>){
-		let mut cache = self.cache.remove(db_url).unwrap();
-		cache.tables = tables;
-		let ret = self.cache.insert(db_url.to_owned(), cache);
-		if ret.is_none(){
-			println!("Cached!");
+		if self.has_cache(db_url){
+			let mut cache = self.cache_map.remove(db_url).unwrap();
+			cache.set_tables(tables);
+			self.cache_map.insert(db_url.to_owned(), cache);
 		}else{
-			println!("not cached!");
+			let mut cache = Cache::new(db_url);
+			cache.set_tables(tables);
+			self.cache_map.insert(db_url.to_owned(), cache);
 		}
 	}
 
 }
 
 /// items cached, unique for each db_url connection
-#[derive(Clone)]
 pub struct Cache{
+	/// connections are cached here as well
+	pub managed_pool: ManagedPool,
     /// windows extraction is an expensive operation and doesn't change very often
-    pub windows: Vec<Window>,
+	/// None indicates, that nothing is cached yet, empty can be indicated as cached
+    pub windows: Option<Vec<Window>>,
     /// tables extraction is an expensive operation and doesn't change very often
-    pub tables: Vec<Table>,
+    pub tables: Option<Vec<Table>>,
+}
+
+impl Cache{
+	
+	fn new(db_url:&str)->Self{
+		let pool = ManagedPool::init(db_url, 1).unwrap();
+		Cache{
+			managed_pool: pool,
+			windows: None,
+			tables: None,
+		}
+	}
+
+	fn set_windows(&mut self, windows: Vec<Window>){
+		self.windows = Some(windows);
+	}
+	fn set_tables(&mut self, tables: Vec<Table>){
+		self.tables = Some(tables);
+	}
+	
+	pub fn get_connection(&self)->Platform{
+		self.managed_pool.connect().unwrap()
+	}
 }
 
 // the db_url is stored in the headers

@@ -22,25 +22,32 @@ use data_service::from_query::FromQuery;
 use iron::status::Status;
 use global::{self, GlobalPools};
 
-pub fn data_query_http(req: &mut Request)->IronResult<Response>{
+pub fn http_data_query(req: &mut Request)->IronResult<Response>{
+	/*
 	let table = req.extensions.get::<Router>().unwrap().find("table").unwrap();
-	let globals = GlobalPools::from_request(req).unwrap();
 	let param = req.url.query.as_ref().unwrap();
+	let globals = GlobalPools::from_request(req).unwrap();
 	let iq = inquerest::query(&param).unwrap();
 	let db_url = global::get_db_url(req).unwrap();
 	data_query(&globals, &db_url, &table, &iq)
+	*/
+	panic!("ongoing");
 }
 pub fn data_query(globals: &GlobalPools, db_url: &str, table:&str, iq: &inquerest::Query)->IronResult<Response>{
 	//FIXME: do necessary security here to check validity of query params
+	/*
 	let query = iq.transform();
 	println!("query:{:#?}",query);
-	let pool = globals.get_pool(db_url).unwrap();
+	let pool = globals.get_cache(db_url).unwrap().managed_pool;
 	let result = data_service::data_json::retrieve_data_from_query(pool.connect().unwrap().as_ref(), table, &iq);
 	let  response = Response::with((Status::Ok, result));
 	Ok(response)
+	*/
+	panic!("ongoing");
 }
 
-pub fn get_data_http(req: &mut Request) -> IronResult<Response> {
+pub fn http_get_data(req: &mut Request) -> IronResult<Response> {
+	/*
     let globals = GlobalPools::from_request(req);
 	let table_name = req.extensions.get::<Router>().unwrap().find("table");
     let page_size = 20;
@@ -48,7 +55,7 @@ pub fn get_data_http(req: &mut Request) -> IronResult<Response> {
 	panic!("not yet");
 }
 pub fn get_data(globals: GlobalPools, db_url: &str, table: &str, page_size: usize) -> IronResult<Response> {
-	let db = globals.get_pool(db_url).unwrap();
+	let db = globals.get_cache(db_url).unwrap().managed_pool;
 	let data = data_service::data_api::retrieve_data(db.connect().unwrap().as_ref(), table, page_size);
 	match data{
 		Ok(data) => {
@@ -59,12 +66,14 @@ pub fn get_data(globals: GlobalPools, db_url: &str, table: &str, page_size: usiz
 				Ok(Response::with((status::BadRequest, format!("{}",e))))
 		}
 	}
+	*/
+	panic!("ongoing");
 }
 
 /// extracts the details of the record,
 /// it will extract the data of the tables that is linked to it
 
-pub fn table_detail_http(req: &mut Request) -> IronResult<Response> {
+pub fn http_table_detail(req: &mut Request) -> IronResult<Response> {
 	let table = req.extensions.get::<Router>().unwrap().find("table");
 	let table = match table{
 		Some(table) => table.to_owned(),
@@ -74,10 +83,12 @@ pub fn table_detail_http(req: &mut Request) -> IronResult<Response> {
 }
 
 pub fn table_detail(globals: &mut GlobalPools, db_url: &str, table: &str) -> IronResult<Response> {
-    println!("Extracting table detail..");
+    /*
+	println!("Extracting table detail..");
     let page_size = 20;//page will be sent in the range header
-	let db = globals.get_pool(db_url).unwrap() ;
+	let db = globals.get_cache(db_url).unwrap().managed_pool ;
 	let window = window_service::retrieve_window_api(globals, db_url, db.connect().unwrap().as_dev(), &table);
+	*/
 	panic!("not yet!");
 }
 
