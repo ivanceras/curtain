@@ -20,16 +20,6 @@ use from_query::{FromOrder, FromFilter, FromRange};
 
 use inquerest;
 
-pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDaoResult, DbError>{
-    let mut query = Query::select_all();
-    let result = query.from(&table)
-          .set_page_size(page_size)
-          .retrieve(db);
-    match result{
-        Ok(result) => Ok(SerDaoResult::from_dao_result(result)),
-        Err(e) => Err(e)
-    }
-}
 /// retrieve table record based on the query
 /// use the first record as the selected record
 /// then pull out the detail from other tables too
