@@ -8,21 +8,18 @@ use codegenta::generator;
 
 use rustorm::database::DatabaseDev;
 use rustorm::query::TableName;
-use window::{self, Window};
+use window_service::window::{self, Window};
 use rustorm::table::Table;
 use unicase::UniCase;
 use global::GlobalPools;
 use global;
 
+
 /// try retrieving tables from cache, if none, then from db and cache it
 fn get_tables(globals: &mut GlobalPools, db_url: &str, db_dev:&DatabaseDev)->Vec<Table>{
-	let has_cache = globals.has_cache(db_url);
+	let has_cache = globals.has_cached_tables(db_url);
 	if has_cache{
-		//let cache = globals.get_cache(db_url).unwrap();
-		//if cache.tables.is_some(){
-		//	return cache.tables.unwrap().clone()
-		//}
-		get_tables_from_db_then_cache(globals, db_url, db_dev)
+		globals.get_cached_tables(db_url).unwrap()
 	}else{
 		get_tables_from_db_then_cache(globals, db_url, db_dev)
 	}
@@ -36,14 +33,9 @@ pub fn get_tables_from_db_then_cache(globals: &mut GlobalPools, db_url: &str, db
 
 fn get_windows(globals: &mut GlobalPools, db_url: &str, db_dev:&DatabaseDev)->Vec<Window>{
     let tables = get_tables(globals, db_url, db_dev);
-	let has_cache = globals.has_cache(db_url);
+	let has_cache = globals.has_cached_windows(db_url);
 	if has_cache{
-		//let cache = globals.get_cache(db_url).unwrap();
-		//match &cache.windows{
-		//	&Some(ref windows) => windows.clone(),
-		//	&None => get_windows_from_db_then_cache(globals, db_url, &tables, db_dev)
-		//}
-		get_windows_from_db_then_cache(globals, db_url, &tables, db_dev)
+		globals.get_cached_windows(db_url).unwrap()
 	}else{
 		get_windows_from_db_then_cache(globals, db_url, &tables, db_dev)
 	}
@@ -78,7 +70,7 @@ pub fn get_matching_table(globals: &mut GlobalPools, db_url: &str, db_dev: &Data
 
 
 /// retrive the window definition of a table
-pub fn retrieve_window_api(globals: &mut GlobalPools, db_url: &str, db_dev:&DatabaseDev, arg_table_name: &str)->Result<Window, String>{
+pub fn retrieve_window(globals: &mut GlobalPools, db_url: &str, db_dev:&DatabaseDev, arg_table_name: &str)->Result<Window, String>{
     info!("getting window: {}", arg_table_name);
     let windows = get_windows(globals, db_url, db_dev);
     let table_name  = TableName::from_str(arg_table_name);
@@ -103,27 +95,15 @@ pub fn retrieve_window_api(globals: &mut GlobalPools, db_url: &str, db_dev:&Data
 
 
 /// list down the windows using only the summaries
-pub fn list_window_api(globals: &mut GlobalPools, db_url: &str, db_dev:&DatabaseDev)->Result<Vec<Window>, String>{
+pub fn list_window(globals: &mut GlobalPools, db_url: &str, db_dev:&DatabaseDev)->Result<Vec<Window>, String>{
     let tables = get_tables(globals, db_url, db_dev);
     let windows = window::list_windows_summary(&tables);
     Ok(windows)
 }
 
-/// http request
-pub fn http_get_window(req: &mut Request) -> IronResult<Response> {
-    let table = match req.extensions.get::<Router>().unwrap().find("table"){
-        Some(table) => table.to_owned(),
-        None => panic!("No table name specified!"),
-    };
-	let db_url = global::get_db_url(req).unwrap();
-	let arc = GlobalPools::from_request(req);
-	let mut globals = arc.lock().unwrap();
-	get_window(&mut globals, &db_url, &table)
-	
-}
 pub fn get_window<'a>(globals: &'a mut GlobalPools, db_url: &str, table: &str) -> IronResult<Response> {
 	let platform = globals.get_connection(db_url).unwrap();
-	match retrieve_window_api(globals, db_url, platform.as_dev(), table){
+	match retrieve_window(globals, db_url, platform.as_dev(), table){
 		Ok(window) => {
 			let encoded = json::encode(&window).unwrap();
 			return Ok(Response::with((Status::Ok, encoded)));
@@ -134,22 +114,3 @@ pub fn get_window<'a>(globals: &'a mut GlobalPools, db_url: &str, table: &str) -
 	}
 }
 
-
-pub fn http_list_window(req: &mut Request) -> IronResult<Response> {
-	let db_url = global::get_db_url(req).unwrap();
-	let arc = GlobalPools::from_request(req);
-	let mut globals = arc.lock().unwrap();
-	list_window(&mut globals, &db_url)
-}
-pub fn list_window(globals: &mut GlobalPools, db_url:&str) -> IronResult<Response> {
-	let platform = globals.get_connection(db_url).unwrap();
-	match list_window_api(globals, db_url, platform.as_dev()){
-		Ok(window_list) => {
-			let encoded = json::encode(&window_list).unwrap();
-			return Ok(Response::with((status::Ok, encoded)));
-		},
-		Err(e) => {
-			return Ok(Response::with((status::BadRequest, format!("{}",e))));
-		}
-	}
-}

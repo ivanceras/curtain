@@ -501,7 +501,7 @@ impl Window{
     ///      the records of the fields that are drop down will still be all retrieved since the user can 
     ///      alter these values, the selected value will is based on the id of the table
     ///
-    /// * has_many indirect M:N
+    //// * has_many indirect M:N
     ///     has_many indirect tables are extracted using dual left joins
     ///     the main table is left join to the direct table left joining the indirect table.
     ///

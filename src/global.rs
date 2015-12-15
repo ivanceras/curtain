@@ -4,7 +4,7 @@ use rand::{thread_rng, Rng};
 
 use rustorm::pool::ManagedPool;
 use iron::typemap::Key;
-use window::Window;
+use window_service::window::Window;
 use rustorm::table::Table;
 use std::collections::BTreeMap;
 use rustorm::pool::Platform;
@@ -39,11 +39,45 @@ impl GlobalPools{
 	pub fn has_cache(&self, db_url: &str)->bool{
 		self.cache_map.contains_key(db_url)
 	}
+	pub fn has_cached_tables(&self, db_url: &str)->bool{
+		match self.get_cache(db_url){
+			Some(cache) => cache.tables.is_some(),
+			None => false
+		}
+	}
 	
 	pub fn get_cache(&self, db_url: &str)->Option<&Cache>{
 		self.cache_map.get(db_url)
 	}
+	pub fn get_cached_tables(&self, db_url: &str)->Option<Vec<Table>>{
+		match self.get_cache(db_url){
+			Some(cache) => {
+				match cache.tables{
+					Some(ref tables) => Some(tables.clone()),
+					None => None
+				}
+			}
+			None => None
+		}
+	}
 
+	pub fn has_cached_windows(&self, db_url: &str)->bool{
+		match self.get_cache(db_url){
+			Some(cache) => cache.windows.is_some(),
+			None => false
+		}
+	}
+	pub fn get_cached_windows(&self, db_url: &str)->Option<Vec<Window>>{
+		match self.get_cache(db_url){
+			Some(cache) => {
+				match cache.windows{
+					Some(ref windows) => Some(windows.clone()),
+					None => None
+				}
+			}
+			None => None
+		}
+	}
     /// cache this window values to this db_url
 	pub fn cache_windows(&mut self, db_url: &str, windows: Vec<Window>){
 		if self.has_cache(db_url) {

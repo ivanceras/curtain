@@ -14,8 +14,7 @@ extern crate queryst;
 extern crate inquerest;
 extern crate arm_rest;
 
-pub mod window;
-pub mod table_info;
 pub mod global;
-mod window_service;
+pub mod window_service;
 pub mod data_service;
+pub mod from_query;

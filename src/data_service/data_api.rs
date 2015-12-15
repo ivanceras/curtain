@@ -16,7 +16,7 @@ use rustorm::query::{Filter, Equality, Join, Modifier, ToTableName};
 use rustorm::dao::Value;
 use uuid::Uuid;
 use queryst;
-use data_service::from_query::{FromOrder, FromFilter, FromRange};
+use from_query::{FromOrder, FromFilter, FromRange};
 
 use inquerest;
 
@@ -36,7 +36,7 @@ pub fn retrieve_data(db: &Database, table: &str, page_size: usize)->Result<SerDa
 /// this would join all other extension tables
 /// this would only use the filters, order, and paging
 /// from, joins, columns,grouping are ignored
-pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: &inquerest::Query)->Result<DaoResult, DbError>{	
+pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: Option<inquerest::Query>)->Result<SerDaoResult, DbError>{	
 	let mut query = Query::select_all();
 	// tables are gotten from window service
 	// main table is used, while extension tables is left joined
@@ -44,38 +44,33 @@ pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: &inquerest::
 	// while the for the extension tables,
 	// the ref table is determined and used to the joined
 	query.from_table(table);
-	for ref fil in &iquery.filters{
-		let filter = fil.transform();
-		query.filters.push(filter);
-	}
-	for ref ord in &iquery.order_by{
-		let order_by = ord.transform();
-		query.order_by.push(order_by);
-	}
-	match &iquery.range{
-		&Some(ref rng) => {
-			let range = rng.transform();
-			query.range = Some(range);
+	match iquery{
+		Some(iquery) => {
+			for ref fil in &iquery.filters{
+				let filter = fil.transform();
+				query.filters.push(filter);
+			}
+			for ref ord in &iquery.order_by{
+				let order_by = ord.transform();
+				query.order_by.push(order_by);
+			}
+			match &iquery.range{
+				&Some(ref rng) => {
+					let range = rng.transform();
+					query.range = Some(range);
+				},
+				&None => {}
+			};
 		},
-		&None => {}
+		None => ()
 	};
 
 	println!("query: {:?}", query);
 	let ret = query.retrieve(db);
 	println!("ret: {:#?}" ,ret);
-	ret
+	match ret{
+		Ok(result) => Ok(SerDaoResult::from_dao_result(result)),
+		Err(e) => Err(e)
+	}
 }
 
-fn correct_data_type<'a>(column: &Column, value: &str)->Option<Value>{
-    if column.data_type == "Uuid"{
-        let uuid = Uuid::parse_str(value).unwrap();
-        return Some(Value::Uuid(uuid))
-    }
-    else if column.data_type == "String" {
-        return Some(Value::String(value.to_string()))
-    }
-    else{
-        panic!("dont know how to convert to {}",column.data_type);
-    }
-    None
-}

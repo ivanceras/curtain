@@ -28,10 +28,10 @@ use iron::AfterMiddleware;
 use unicase::UniCase;
 use iron::headers;
 
-mod window;
 mod window_service;
 mod global;
 mod data_service;
+mod from_query;
 
 
 
@@ -48,11 +48,9 @@ fn main() {
     let mut router = Router::new();
     router
         .get("/", say_hello)
-        .get("/window", window_service::http_list_window)
-        .get("/window/:table", window_service::http_get_window)
-        .get("/data/:table",data_service::data_http::http_get_data)
-        .get("/data_query/:table",data_service::data_http::http_data_query)
-        .get("/detail/:table",data_service::data_http::http_table_detail)
+        .get("/window", window_service::window_http::http_list_window)
+        .get("/window/:table", window_service::window_http::http_get_window)
+        .get("/data/:table",data_service::data_http::http_data_query)
         ;
     let mut middleware = Chain::new(router);
     middleware.link(Write::<GlobalPools>::both(GlobalPools::new()));
