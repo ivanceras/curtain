@@ -357,15 +357,15 @@ impl Tab{
             default_order:HashMap::new(),
         }
     }
-    /// [FIXME] determine which fields are used in has_ones table
-    fn derive_fields(table:&Table, all_tables:&Vec<Table>)->Vec<Field>{
+    
+	fn derive_fields(table:&Table, all_tables:&Vec<Table>)->Vec<Field>{
         let has_one_fields = Self::derive_has_ones_fields(table, all_tables);
        
         let mut fields = Vec::new();
         for c in &table.columns{
-            let has_on_field = Self::in_has_one_fields(c, &has_one_fields);
-            if has_on_field.is_some(){
-                fields.push(has_on_field.unwrap());
+            let has_one_field = Self::in_has_one_fields(c, &has_one_fields);
+            if has_one_field.is_some(){
+                fields.push(has_one_field.unwrap());
             }
             else{
                 fields.push(Field::from_column(c, table, all_tables));
@@ -409,7 +409,6 @@ impl Tab{
         tabs
     }
     /// directly referring table
-    /// [FIXME] don't include extension tables and linker tables
     /// What to do with the case when there is too many table referring this table
     /// Many just add: "used in", but not display the whole details of the tab using it
     fn derive_has_many_tabs(table:&Table, ext_tables:&Vec<&Table>, all_tables:&Vec<Table>)->Vec<Tab>{

@@ -33,14 +33,14 @@ pub fn http_data_query(req: &mut Request)->IronResult<Response>{
 		None => None
 	};
 
-	let arc = GlobalPools::from_request(req);
-	let mut globals = arc.lock().unwrap();
+	let globals = GlobalPools::from_request(req);
+	//let mut globals = arc.read().unwrap();
 	let iq = match param{
 		Some(param) => Some(inquerest::query(&param).unwrap()),
 		None => None
 	};
 	let db_url = global::get_db_url(req).unwrap();
-	let json = data_service::data_json::json_data_query(&mut globals, &db_url, &table, iq);
+	let json = data_service::data_json::json_data_query(globals, &db_url, &table, iq);
 	Ok(Response::with((Status::Ok, json)))
 }
 

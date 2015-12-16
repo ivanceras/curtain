@@ -55,12 +55,31 @@ pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: Option<inque
 		None => ()
 	};
 
-	println!("query: {:?}", query);
 	let ret = query.retrieve(db);
-	println!("ret: {:#?}" ,ret);
 	match ret{
 		Ok(result) => Ok(SerDaoResult::from_dao_result(result)),
 		Err(e) => Err(e)
 	}
 }
 
+
+/*
+/// retrieve the record detail
+/// the filter query is required
+/// where the record id is determined
+/// record_id is the primary_key value of the record,
+/// or unique value when no primary key is defined
+/// or all columns when no primary_key nor unique indexes defined
+/// extension tabs has 1:1 record
+/// paging will be applied to has_many and indirect has_many record
+/// FIXME: how to express filter for the has_many and indirect has_many records
+/// Resolve: There should be 1 request for each tab presentation
+/// Realization: Use table.column to apply only on their respect tables
+/// Use tab.paging for paging on their respective tables as well.
+/// Question 1: Does paging of has_many tabs will have to request using retrieve record_detail or to their respective table specific api
+/// table.focused=table.u_column1=eq.value1&table.u_column2=eq.value2&table2.focused=table2.p_column1=eq.value1&table.page=10&table.page_size=100
+
+fn retrieve_record_detail(db: &Database, table: &str, iquery: inquerest::Query)->Result<SerDaoResult, DbError>{
+
+}
+*/

@@ -1,5 +1,5 @@
 use iron::prelude::*;
-use persistent::{Write};
+use persistent::{Write, State};
 use rand::{thread_rng, Rng};
 
 use rustorm::pool::ManagedPool;
@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use rustorm::pool::Platform;
 use rustorm::database::DbError;
 use rustorm::database::Database;
-use std::sync::{Arc,Mutex};
+use std::sync::{Arc,Mutex, RwLock};
 
 
 
@@ -31,8 +31,8 @@ impl GlobalPools{
 		}
 	}
 
-	pub fn from_request(req: &mut Request)->Arc<Mutex<Self>>{
-		let global = req.get::<Write<GlobalPools>>().unwrap();
+	pub fn from_request(req: &mut Request)->Arc<RwLock<Self>>{
+		let global = req.get::<State<GlobalPools>>().unwrap();
 		global
 	}
 	

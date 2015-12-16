@@ -19,7 +19,7 @@ use router::Router;
 use std::str::FromStr;
 use std::env;
 use iron::prelude::*;
-use persistent::{Write};
+use persistent::{Write, State};
 use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
 use global::GlobalPools;
@@ -53,7 +53,7 @@ fn main() {
         .get("/data/:table",data_service::data_http::http_data_query)
         ;
     let mut middleware = Chain::new(router);
-    middleware.link(Write::<GlobalPools>::both(GlobalPools::new()));
+    middleware.link(State::<GlobalPools>::both(GlobalPools::new()));
 	middleware.link_after(CORS);
     let host = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), get_server_port());
     println!("listening on http://{}", host);
