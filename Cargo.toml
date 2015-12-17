@@ -30,8 +30,8 @@ inquerest = "0.0.6"
 version = "0.2.17"
 features = ["rustc-serialize"]
 
-[dependencies.arm_rest]
-path = "../armrest"
+#[dependencies.arm_rest]
+#path = "../armrest"
 
 #[dependencies.rustorm]
 #path = "../rustorm"

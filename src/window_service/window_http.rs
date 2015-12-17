@@ -22,8 +22,8 @@ use window_service;
 pub fn http_list_window(req: &mut Request) -> IronResult<Response> {
 	let db_url = global::get_db_url(req).unwrap();
 	let globals = GlobalPools::from_request(req);
-	//let mut globals = arc.read().unwrap();
-	let json = window_service::window_json::json_list_window(globals, &db_url);
+	let platform = globals.write().unwrap().get_connection(&db_url).unwrap();
+	let json = window_service::window_json::json_list_window(globals, &db_url, platform.as_dev());
 	Ok(Response::with((Status::Ok, json)))
 }
 
@@ -36,7 +36,7 @@ pub fn http_get_window(req: &mut Request) -> IronResult<Response> {
     };
 	let db_url = global::get_db_url(req).unwrap();
 	let globals = GlobalPools::from_request(req);
-	//let mut globals = arc.read().unwrap();
-	let json = window_service::window_json::json_get_window(globals, &db_url, &table);
+	let platform = globals.write().unwrap().get_connection(&db_url).unwrap();
+	let json = window_service::window_json::json_get_window(globals, &db_url, platform.as_dev(), &table);
 	Ok(Response::with((Status::Ok, json)))
 }

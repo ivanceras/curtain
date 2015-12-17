@@ -3,7 +3,7 @@ use router::Router;
 use iron::prelude::*;
 use rustc_serialize::json::{self};
 
-use rustorm::database::Database;
+use rustorm::database::{Database, DatabaseDev};
 use rustorm::dao::{SerDaoResult, DaoResult};
 use rustorm::database::DbError;
 use rustorm::query::Query;
@@ -17,6 +17,9 @@ use rustorm::dao::Value;
 use uuid::Uuid;
 use queryst;
 use from_query::{FromOrder, FromFilter, FromRange};
+use global::Cache;
+use std::sync::{Arc,RwLock};
+use global::GlobalPools;
 
 use inquerest;
 
@@ -26,14 +29,15 @@ use inquerest;
 /// this would join all other extension tables
 /// this would only use the filters, order, and paging
 /// from, joins, columns,grouping are ignored
-pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: Option<inquerest::Query>)->Result<SerDaoResult, DbError>{	
+pub fn retrieve_data_from_query(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, db: &Database, arg_table: &str, iquery: Option<inquerest::Query>)->Result<SerDaoResult, DbError>{	
 	let mut query = Query::select_all();
+	let table = window_service::window_api::get_matching_table(globals, db_url, db_dev, arg_table).unwrap();
 	// tables are gotten from window service
 	// main table is used, while extension tables is left joined
 	// has many tables are looped and retrieved for each record
 	// while the for the extension tables,
 	// the ref table is determined and used to the joined
-	query.from_table(table);
+	query.from(&table);
 	match iquery{
 		Some(iquery) => {
 			for ref fil in &iquery.filters{
@@ -65,7 +69,7 @@ pub fn retrieve_data_from_query(db: &Database, table: &str, iquery: Option<inque
 /// focused_table - the main table of the list
 /// focused_record - selected record in the table list
 
-fn retrieve_record_detail(db: &Database, focused_table: &str, focused_record: inquerest::Query,
+fn retrieve_focused_record_detail(globals: Arc<RwLock<GlobalPools>>, focused_table: &str, focused_record: inquerest::Query,
 tab_table: &str, tab_filters: inquerest::Query)->Result<SerDaoResult, DbError>{
 	
 	panic!("ongoing!");

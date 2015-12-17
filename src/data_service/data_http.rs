@@ -3,7 +3,7 @@ use router::Router;
 use iron::prelude::*;
 use rustc_serialize::json::{self};
 
-use rustorm::database::Database;
+use rustorm::database::{Database,DatabaseDev};
 use rustorm::dao::{SerDaoResult, DaoResult};
 use rustorm::database::DbError;
 use rustorm::query::Query;
@@ -34,13 +34,13 @@ pub fn http_data_query(req: &mut Request)->IronResult<Response>{
 	};
 
 	let globals = GlobalPools::from_request(req);
-	//let mut globals = arc.read().unwrap();
 	let iq = match param{
 		Some(param) => Some(inquerest::query(&param).unwrap()),
 		None => None
 	};
 	let db_url = global::get_db_url(req).unwrap();
-	let json = data_service::data_json::json_data_query(globals, &db_url, &table, iq);
+	let platform = globals.write().unwrap().get_connection(&db_url).unwrap();
+	let json = data_service::data_json::json_data_query(globals, &db_url, platform.as_dev(), platform.as_ref(), &table, iq);
 	Ok(Response::with((Status::Ok, json)))
 }
 

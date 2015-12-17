@@ -17,7 +17,7 @@ use global;
 
 
 /// try retrieving tables from cache, if none, then from db and cache it
-fn get_tables(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&DatabaseDev)->Vec<Table>{
+fn get_tables(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev)->Vec<Table>{
 	let has_cache = globals.read().unwrap().has_cached_tables(db_url);
 	if has_cache{
 		globals.read().unwrap().get_cached_tables(db_url).unwrap()
@@ -26,23 +26,23 @@ fn get_tables(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&DatabaseD
 	}
 }
 
-pub fn get_tables_from_db_then_cache(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&DatabaseDev)->Vec<Table>{
+pub fn get_tables_from_db_then_cache(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev)->Vec<Table>{
 	let db_tables = generator::get_all_tables(db_dev);
 	globals.write().unwrap().cache_tables(db_url, db_tables.clone());	
 	db_tables
 }
 
-fn get_windows(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&DatabaseDev)->Vec<Window>{
+fn get_windows(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev)->Vec<Window>{
     let tables = get_tables(globals.clone(), db_url, db_dev);
 	let has_cache = globals.read().unwrap().has_cached_windows(db_url);
 	if has_cache{
 		globals.read().unwrap().get_cached_windows(db_url).unwrap()
 	}else{
-		get_windows_from_db_then_cache(globals, db_url, &tables, db_dev)
+		get_windows_from_db_then_cache(globals, db_url, &tables)
 	}
 }
 
-fn get_windows_from_db_then_cache(globals: Arc<RwLock<GlobalPools>>, db_url: &str, tables: &Vec<Table>, db_dev: &DatabaseDev)->Vec<Window>{
+fn get_windows_from_db_then_cache(globals: Arc<RwLock<GlobalPools>>, db_url: &str, tables: &Vec<Table>)->Vec<Window>{
 	let db_windows = window::extract_windows(tables);
 	globals.write().unwrap().cache_windows(db_url, db_windows.clone());
 	db_windows
@@ -71,7 +71,7 @@ pub fn get_matching_table(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_de
 
 
 /// retrive the window definition of a table
-pub fn retrieve_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&DatabaseDev, arg_table_name: &str)->Result<Window, String>{
+pub fn retrieve_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, arg_table_name: &str)->Result<Window, String>{
     info!("getting window: {}", arg_table_name);
     let windows = get_windows(globals, db_url, db_dev);
     let table_name  = TableName::from_str(arg_table_name);
@@ -96,15 +96,14 @@ pub fn retrieve_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&
 
 
 /// list down the windows using only the summaries
-pub fn list_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev:&DatabaseDev)->Result<Vec<Window>, String>{
+pub fn list_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev)->Result<Vec<Window>, String>{
     let tables = get_tables(globals, db_url, db_dev);
     let windows = window::list_windows_summary(&tables);
     Ok(windows)
 }
 
-pub fn get_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, table: &str) -> IronResult<Response> {
-	let platform = globals.write().unwrap().get_connection(db_url).unwrap();
-	match retrieve_window(globals, db_url, platform.as_dev(), table){
+pub fn get_window(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, table: &str) -> IronResult<Response> {
+	match retrieve_window(globals, db_url, db_dev, table, ){
 		Ok(window) => {
 			let encoded = json::encode(&window).unwrap();
 			return Ok(Response::with((Status::Ok, encoded)));

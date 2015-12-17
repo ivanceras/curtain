@@ -16,9 +16,8 @@ use global::GlobalPools;
 use global;
 use window_service;
 
-pub fn json_get_window<'a>(globals: Arc<RwLock<GlobalPools>>, db_url: &str, table: &str) -> String{
-	let platform = globals.write().unwrap().get_connection(db_url).unwrap();
-	match window_service::window_api::retrieve_window(globals, db_url, platform.as_dev(), table){
+pub fn json_get_window<'a>(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, table: &str) -> String{
+	match window_service::window_api::retrieve_window(globals, db_url, db_dev, table){
 		Ok(window) => {
 			json::encode(&window).unwrap()
 		},
@@ -29,9 +28,8 @@ pub fn json_get_window<'a>(globals: Arc<RwLock<GlobalPools>>, db_url: &str, tabl
 }
 
 
-pub fn json_list_window(globals: Arc<RwLock<GlobalPools>>, db_url:&str) -> String {
-	let platform = globals.write().unwrap().get_connection(db_url).unwrap();
-	match window_service::window_api::list_window(globals, db_url, platform.as_dev()){
+pub fn json_list_window(globals: Arc<RwLock<GlobalPools>>, db_url:&str, db_dev: &DatabaseDev) -> String {
+	match window_service::window_api::list_window(globals, db_url, db_dev){
 		Ok(window_list) => {
 			json::encode(&window_list).unwrap()
 		},
