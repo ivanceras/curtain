@@ -1,0 +1,121 @@
+[
+  {
+    "name": "Address",
+    "description": "@Address",
+    "table": "address",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Base",
+    "description": "Base table contains the creation and modification status of a record",
+    "table": "base",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Cart",
+    "description": null,
+    "table": "cart",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Category",
+    "description": null,
+    "table": "category",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Client",
+    "description": null,
+    "table": "client",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Country",
+    "description": null,
+    "table": "country",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Currency",
+    "description": null,
+    "table": "currency",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Exchange Rate",
+    "description": null,
+    "table": "exchange_rate",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Invoice",
+    "description": null,
+    "table": "invoice",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Orders",
+    "description": null,
+    "table": "orders",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Organization",
+    "description": null,
+    "table": "organization",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Photo",
+    "description": null,
+    "table": "photo",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Product",
+    "description": "This will be exposed as an @Api, including @Table(users, category, product_availability, photo)",
+    "table": "product",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Record",
+    "description": "All User table should inherit from this one",
+    "table": "record",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Review",
+    "description": "Reviews of buyers from the sellers and the sellers' products",
+    "table": "review",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Users",
+    "description": "This are @Users, will be used for @Login",
+    "table": "users",
+    "info": null,
+    "tab": null
+  },
+  {
+    "name": "Wishlist",
+    "description": null,
+    "table": "wishlist",
+    "info": null,
+    "tab": null
+  }
+]
