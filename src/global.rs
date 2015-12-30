@@ -133,7 +133,7 @@ pub struct Cache{
 impl Cache{
 	
 	fn new(db_url:&str)->Self{
-		let pool = ManagedPool::init(db_url, 100).unwrap();
+		let pool = ManagedPool::init(db_url,20).unwrap();
 		Cache{
 			managed_pool: pool,
 			windows: None,
