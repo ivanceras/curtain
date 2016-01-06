@@ -63,5 +63,9 @@ cd bazaar/scripts
 Curtain is part of my pet projects that I have been working on my spare time.
 [Rustorm](https://github.com/ivanceras/rustorm) is an ORM and serves as the core library on most of my projects.
 
-[bountysource](https://www.bountysource.com/teams/ivanceras)
-[gratipay](https://gratipay.com/~ivanceras/)
+
+[Bountysource](https://www.bountysource.com/teams/ivanceras)
+
+[Gratipay](https://gratipay.com/~ivanceras/)
+
+[twitter: @ivanceras](https://twitter.com/ivanceras)
