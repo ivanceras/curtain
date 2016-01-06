@@ -1,6 +1,6 @@
 #Curtain
 
-A data-only administration tool for postgresql, which understand relationshipt between tables through their foreign keys and display related data to the data in context.
+A data-only administration tool for postgresql, which understand relationship between tables through their foreign keys and display related data to the data in context.
 
 Inspired by: Application Dictionary of Compiere, Adempiere, Openbravo.
 
