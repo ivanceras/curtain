@@ -10,10 +10,15 @@ There are Work in progress clients
 
 1. [curtain_ui](https://github.com/ivanceras/curtain_ui) - javascript implementation
    ![](https://raw.githubusercontent.com/ivanceras/curtain_ui/master/screenshots/curtain_ui.png)
+
    [Demo](http://curtain-ui.herokuapp.com/?/new) - Please don't flood the servers.
-2. [curtain_gtk](https://github.com/ivanceras/curtain_gtk) - gtk client
+
+
+2. [curtain_gtk](https://github.com/ivanceras/curtain_gtk) - gtk client (WIP) Doing [gtk-rs](https://github.com/gtk-rs/gtk) UI is not very ergonomic, and the projects is not yet matured.
     ![](https://raw.githubusercontent.com/ivanceras/curtain_gtk/master/screenshot/client_side.png)
-3. [curtain_elm](https://github.com/ivanceras/curtain_elm) - TODO: elm implementation. Despite using simplistic framework, in javascript implementation, it gets realy hard to quikcly grasp the original intent of the code that were previously written. As a programmer who jumps from multiple languages and frameworks, I had no problem jumping in between multiple rust projects. This is a different case for javascript. I'm giving elm a shot on this.
+
+
+3. [curtain_elm](https://github.com/ivanceras/curtain_elm) - TODO: elm implementation. Despite using simplistic framework, in javascript implementation, it gets realy hard to quickly grasp the original intent of the code that were previously written. As a programmer who jumps from multiple languages and frameworks, I had no problem jumping in between multiple rust projects. This is a different case for javascript projects. I'm giving elm a shot on this.
 
 
 ## Quick start installation
