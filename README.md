@@ -23,14 +23,18 @@ There are Work in progress clients
 
 ## Quick start installation
 
-Run the server
+Checkout the code and set a compatible nightly build. nightly-2015-12-26 is known to work.
+
+
 ```sh
 
 git clone https://github.com/ivanceras/curtain
 cd curtain
+multirust override nightly-2015-12-26
 cargo run --release
 
 ```
+
 Curtain opens port [8181](https://github.com/ivanceras/curtain/blob/master/src/main.rs#L83) and the client is configured to use this port.
 
 ```sh
