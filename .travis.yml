@@ -1,13 +1,12 @@
 os:
  - linux
- - osx
 
 language: rust
 
 rust:
 - nightly
-- beta
-- stable
+- nightly-2015-12-26
+
   
 script:
 - cargo run
