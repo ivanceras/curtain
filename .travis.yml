@@ -4,9 +4,8 @@ os:
 language: rust
 
 rust:
-- nightly
 - nightly-2015-12-26
 
   
 script:
-- cargo run
+- cargo build
