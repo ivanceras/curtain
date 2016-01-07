@@ -1,7 +1,7 @@
 [package]
 name = "curtain"
 version = "0.2.0"
-authors = ["jcesar <jovansonlee.cesar@truste.com>"]
+authors = ["Jovansonlee Cesar <ivanceras@gmail.com>"]
 
 
 [[bin]]

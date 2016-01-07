@@ -1,5 +1,7 @@
 #Curtain
 
+[![Build Status](https://api.travis-ci.org/ivanceras/curtain.svg)](https://travis-ci.org/ivanceras/curtain)
+
 A data-only administration tool for postgresql, which understand relationship between tables through their foreign keys and display related data to the data in context.
 
 Inspired by: Application Dictionary of Compiere, Adempiere, Openbravo.
