@@ -23,8 +23,11 @@ use rustorm::query::Operand;
 use rustorm::dao::{Dao, Type};
 use chrono::datetime::DateTime;
 use std::str::FromStr;
-
+use rustorm::query::ToSourceField;
+use global::Context;
+use window_service::window_api;
 use inquerest;
+use validator::DbElementValidator;
 
 /// retrieve table record based on the query
 /// use the first record as the selected record
@@ -32,119 +35,44 @@ use inquerest;
 /// this would join all other extension tables
 /// this would only use the filters, order, and paging
 /// from, joins, columns,grouping are ignored
-pub fn retrieve_data_from_query(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, db: &Database, arg_table: &str, iquery: Option<inquerest::Query>)->Result<DaoResult, DbError>{	
+pub fn retrieve_data_from_query(context: &mut Context, arg_table: &str, iquery: Option<inquerest::Query>)->Result<DaoResult, DbError>{	
 	let mut query = Query::select_all();
-	let table = window_service::window_api::get_matching_table(globals, db_url, db_dev, arg_table).unwrap();
+	let table = window_service::window_api::get_matching_table(context, arg_table).unwrap();
 	// tables are gotten from window service
 	// main table is used, while extension tables is left joined
 	// has many tables are looped and retrieved for each record
 	// while the for the extension tables,
 	// the ref table is determined and used to the joined
+	let validator = DbElementValidator::from_context(context);
 	query.from(&table);
 	match iquery{
 		Some(iquery) => {
 			for ref fil in &iquery.filters{
-				let filter = correct_filters(&table, &fil.transform());
+				let filter = correct_filters(&table, &fil.transform(&validator));
 				query.filters.push(filter);
 			}
 			for ref ord in &iquery.order_by{
-				let order_by = ord.transform();
+				let order_by = ord.transform(&validator);
 				query.order_by.push(order_by);
 			}
 			match &iquery.range{
 				&Some(ref rng) => {
 					let range = rng.transform();
-					query.range = Some(range);
+					query.range = range;
 				},
 				&None => {}
 			};
 		},
 		None => ()
 	};
-	let ret = query.retrieve(db);
+	let ret = query.retrieve(context.db().unwrap());
 	match ret{
 		Ok(result) => Ok(result),
 		Err(e) => Err(e)
 	}
 }
 
-/// focused_table - the main table of the list
-/// focused_record - selected record in the table list
 
-fn retrieve_focused_record_detail(globals: Arc<RwLock<GlobalPools>>, focused_table: &str, focused_record: inquerest::Query,
-tab_table: &str, tab_filters: inquerest::Query)->Result<DaoResult, DbError>{
-	panic!("ongoing!");
-}
-
-/// remove selected records from the database
-/// only filters from iquery is included into the delete query
-/// TODO: How is cascade constraint deal with. Delete the other records as well?
-/// TODO: correct the data types of the right value of the filter based on the the column data type
-/// returns the number of deleted recordds
-pub fn delete_records(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, db: &Database, arg_table: &str, iquery: inquerest::Query)->Result<usize, DbError>{
-	println!("Deleting records..");
-	let table = window_service::window_api::get_matching_table(globals, db_url, db_dev, arg_table).unwrap();
-	let mut query = Query::delete();
-	query.from(&table);
-	for ref fil in &iquery.filters{
-		let filter = fil.transform();
-		let cfilter = correct_filters(&table, &filter);
-		query.filters.push(cfilter);
-	}
-	let ret = query.execute(db);
-	match ret{
-		Ok(n) => Ok(n),
-		Err(e) => Err(e)
-	}
-}
-
-pub fn insert_records(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, db: &Database, arg_table: &str, dao_list: &Vec<Dao>)->Result<DaoResult, DbError>{
-	let table = window_service::window_api::get_matching_table(globals, db_url, db_dev, arg_table).unwrap();
-	let mut query = Query::insert();
-	query.into_(&table);
-	for col in &table.columns{
-		query.column(&col.name);
-	}
-	for dao in dao_list{
-		for col in &table.columns{
-			let dao_value = dao.get_value(&col.name);
-			let cvalue = correct_value_type(&dao_value, &col.data_type);
-			query.add_value(&cvalue);
-
-		}
-	}
-	query.return_all();
-
-	println!("update query: {:#?}", query);
-	let ret = query.retrieve(db);
-	println!("ret: {:?}",ret);
-	ret
-}
-/// update the records
-/// returns the updated records
-pub fn update_records(globals: Arc<RwLock<GlobalPools>>, db_url: &str, db_dev: &DatabaseDev, db: &Database, arg_table: &str, iquery: inquerest::Query, dao: &Dao)->Result<DaoResult, DbError>{
-	let table = window_service::window_api::get_matching_table(globals, db_url, db_dev, arg_table).unwrap();
-	let mut query = Query::update();
-	query.from(&table);
-	for ref fil in &iquery.filters{
-		let filter = fil.transform();
-		let cfilter = correct_filters(&table, &filter);
-		query.filters.push(cfilter);
-	}
-	for col in table.columns{
-		println!("col: {} = {}", col.name, dao.get_value(&col.name));
-		let dao_value = dao.get_value(&col.name);
-		let cvalue = correct_value_type(&dao_value, &col.data_type);
-		query.set_value(&col.name, &cvalue);
-
-	}
-	query.return_all();
-
-	println!("update query: {:#?}", query);
-	let ret = query.retrieve(db);
-	println!("ret: {:?}",ret);
-	ret
-}
 /// correct filters to their concise type, according to their column data types
 fn correct_filters(table: &Table, filter: &Filter)->Filter{
 	let new_condition = correct_condition(table, &filter.condition);
@@ -225,10 +153,3 @@ fn correct_value_type(orig: &Value, to_type: &Type)->Value{
 } 
 
 
-/// insert new records
-/// update dirty records with
-/// returns the inserted records
-/// the updated records
-fn save_records(globals: Arc<RwLock<GlobalPools>>, table: &str, original_records: DaoResult, dirty_records: DaoResult, new_records: DaoResult)->Result<(DaoResult, DaoResult), DbError>{
-	panic!("ongoing!");
-}

@@ -3,16 +3,19 @@ extern crate rustorm;
 
 use rustorm::query::{Query, Join, Filter, Condition, Connector, 
     Equality, Operand, ToTableName, Modifier, JoinType,
-    ColumnName, Function, Direction, Range, Page, Limit, NullsWhere,
+    ColumnName, Function, Direction, Range, NullsWhere,
 	Order,
     };
-
+use rustorm::query::TableName;
 use rustorm::dao::Value;
+use rustorm::query::source::QuerySource;
+use std::collections::HashSet;
+use validator::DbElementValidator;
 
 /// convert inquery to sql query
 
 pub trait FromQuery{
-    fn transform(&self) -> Query;
+    fn transform(&self, validator: &DbElementValidator) -> Query;
 
 }
 
@@ -21,42 +24,44 @@ impl FromQuery for iq::Query {
     
     /// you would still want to check for validity and permission first
     /// before even blindly transforming the query
-    fn transform(&self) -> Query{
+    fn transform(&self, validator: &DbElementValidator) -> Query{
         let mut q = Query::new();
         
         for ref fr in &self.from{
-            let table = match fr{
+            match fr{
                 &&iq::Operand::Column(ref column) => {
-                    column
+					if validator.is_valid_table(column){
+						let table = QuerySource::TableName(TableName::from_str(column));
+						q.from(&table);
+					}
                 }
                 _ => { unimplemented!()}
             };
-            q.from(table);
         }
         for j in &self.join{
             println!("join: {:#?}", j);
-            println!("to_join: {:#?}", j.transform());
-            q.join(j.transform());
+            println!("to_join: {:#?}", j.transform(validator));
+            q.joins.push(j.transform(validator));
         }
         for f in &self.filters{
             println!("filter: {:?}", f);
-            q.add_filter(f.transform());
+            q.add_filter(f.transform(validator));
         }
         for g in &self.group_by{
             println!("group_by: {:?}", g);
-            q.group_by.push(g.transform(Mode::Standard));
+            q.group_by.push(g.smart_transform(validator));
         }
         for h in &self.having{
             println!("having: {:?}", h);
-            q.having.push(h.transform());
+            q.having.push(h.transform(validator));
         }
         for o in &self.order_by{
             println!("order_by: {:?}", o);
-            q.order_by.push(o.transform());
+            q.order_by.push(o.transform(validator));
         }
         match &self.range{
 			&Some(ref range) => {
-				q.range = Some(range.transform())
+				q.range = range.transform()
 			}
             &None => {}
         };
@@ -66,12 +71,12 @@ impl FromQuery for iq::Query {
 }
 
 pub trait FromOrder{
-    fn transform(&self)->Order;
+    fn transform(&self, validator: &DbElementValidator)->Order;
 }
 
 impl FromOrder for iq::Order{
-    fn transform(&self)->Order{
-		let operand = self.operand.transform(Mode::Standard);
+    fn transform(&self, validator: &DbElementValidator)->Order{
+		let operand = self.operand.smart_transform(validator);
         let direction = match &self.direction{
 			&Some(ref direction) => {
 				match direction{
@@ -104,25 +109,24 @@ pub trait FromRange{
 
 impl FromRange for iq::Range{
 	fn transform(&self)->Range{
-		match self{
-			&iq::Range::Page(ref page) => {
-				Range::Page(
-					Page{
-						page: Some(page.page as usize),
-						page_size: Some(page.page_size as usize),
-					}
-				)
+		match *self{
+			iq::Range::Page(ref page) => {
+				let limit = page.page_size;
+				let offset = page.page_size * page.page_size;
+				Range{
+					limit: Some(limit as usize),
+					offset: Some(offset as usize),
+				}
 			},
-			&iq::Range::Limit(ref limit) => {
-				Range::Limit(
-					Limit{
-						limit: Some(limit.limit as usize),
-						offset: match limit.offset{ 
-									Some(offset) => Some(offset as usize),
-									None => None
-						}
-					}
-				)
+			iq::Range::Limit(ref limit) => {
+				let offset = match limit.offset{
+					Some(offset) => Some(offset as usize),
+					None => None
+				};
+				Range{
+					limit: Some(limit.limit as usize),
+					offset: offset,
+				}
 			}
 		}
 	}
@@ -143,23 +147,23 @@ impl FromConnector for iq::Connector{
 }
 
 pub trait FromFilter{
-    fn transform(&self) -> Filter;
+    fn transform(&self, validator: &DbElementValidator) -> Filter;
 }
 
 
 impl FromFilter for iq::Filter{
     
-    fn transform(&self) -> Filter{
+    fn transform(&self, validator: &DbElementValidator) -> Filter{
         let mut sub_filters = vec![];
         for f in &self.sub_filters{
-            sub_filters.push(f.transform());
+            sub_filters.push(f.transform(validator));
         }
         Filter{
             connector: match &self.connector{
                 &Some(ref conn) => conn.transform(),
                 &None => Connector::And
             },
-            condition: self.condition.transform(),
+            condition: self.condition.transform(validator),
             sub_filters: sub_filters,
         }
     }
@@ -167,16 +171,16 @@ impl FromFilter for iq::Filter{
 }
 
 pub trait FromCondition{
-    fn transform(&self) -> Condition;
+    fn transform(&self, validator: &DbElementValidator) -> Condition;
 }
 
 impl FromCondition for iq::Condition{
     
-    fn transform(&self) -> Condition {
+    fn transform(&self, validator:&DbElementValidator) -> Condition {
         Condition {
-            left: self.left.transform(Mode::Standard),
+            left: self.left.smart_transform(validator),
             equality: self.equality.transform(),
-            right: self.right.transform(Mode::ColumnAsStringValue),
+            right: self.right.smart_transform(validator),
         }
     }
 }
@@ -206,26 +210,22 @@ impl FromEquality for iq::Equality{
 }
 
 pub trait FromOperand{
-    fn transform(&self, mode: Mode) -> Operand;
+	fn smart_transform(&self, validator: &DbElementValidator) -> Operand;
 }
 
-pub enum Mode{
-	Standard,
-	ColumnAsStringValue,
-}
 
 impl FromOperand for iq::Operand{
     
-    fn transform(&self, mode: Mode) -> Operand{
+
+	/// using table, columns, function validator, a decision on how
+	/// to trait each values accordingly
+	fn smart_transform(&self, validator: &DbElementValidator) -> Operand{
         match &self{
             &&iq::Operand::Column(ref column) => {
-				match mode{
-					Mode::Standard => {
-						Operand::ColumnName(ColumnName::from_str(column))
-					},
-					Mode::ColumnAsStringValue => {
-						Operand::Value(Value::String(column.to_owned()))
-					}
+				if validator.is_valid_column(column){
+					Operand::ColumnName(ColumnName::from_str(column))
+				}else{
+					Operand::Value(Value::String(column.to_owned()))
 				}
             },
             &&iq::Operand::Number(number) => {
@@ -235,20 +235,27 @@ impl FromOperand for iq::Operand{
                 Operand::Value(Value::Bool(boolean))
             },
             &&iq::Operand::Function(ref function) => {
-                Operand::Function(function.transform())
+				if validator.function_validator.is_valid_function_name(&function.function){
+					Operand::QuerySource(
+						QuerySource::Function(function.transform(validator))
+					)
+				}else{
+					panic!("Function is invalid");
+				}
             },
         }
-    }
+	}
+	
 }
 
 pub trait FromFunction{
-    fn transform(&self) -> Function;
+    fn transform(&self, validator: &DbElementValidator) -> Function;
 }
 impl FromFunction for iq::Function{
-    fn transform(&self) -> Function{
+    fn transform(&self, validator: &DbElementValidator) -> Function{
         let mut params = vec![];
         for p in &self.params{
-            params.push(p.transform(Mode::Standard))
+            params.push(p.smart_transform(validator))
         }
         Function{
             function: self.function.to_owned(),
@@ -260,13 +267,39 @@ impl FromFunction for iq::Function{
 
 pub trait FromJoin{
     
-    fn transform(&self) -> Join;
+    fn transform(&self, validator: &DbElementValidator) -> Join;
 }
 
 impl FromJoin for iq::Join{
     
-    fn transform(&self) -> Join{
+    fn transform(&self, validator: &DbElementValidator) -> Join{
         
+		assert_eq!(self.column1.len(), self.column2.len());
+		assert!(self.column1.len() > 0);
+		let left0 =  Operand::ColumnName(ColumnName::from_str(&self.column1[0]));
+		let right0 = Operand::ColumnName(ColumnName::from_str(&self.column2[0]));
+		let cond0 = Condition{
+			left: left0,
+			equality: Equality::EQ,
+			right: right0,
+		};
+
+		let mut sub_filters = vec![];
+		for i in 1..self.column1.len(){
+			let left =  Operand::ColumnName(ColumnName::from_str(&self.column1[i]));
+			let right = Operand::ColumnName(ColumnName::from_str(&self.column2[i]));
+			let filter = Filter{
+				connector: Connector::And,
+				condition: Condition{
+					left: left,
+					equality: Equality::EQ,
+					right: right,
+				},
+				sub_filters: vec![],
+			};
+			sub_filters.push(filter);
+		}
+
         Join{
             modifier: match &self.modifier{
                         &Some(ref modifier) => Some(modifier.transform()),
@@ -277,11 +310,14 @@ impl FromJoin for iq::Join{
                         &None => None
                     },
             table_name: match &self.table{
-                    &iq::Operand::Column(ref column) => column.to_table_name(),
+                    &iq::Operand::Column(ref column) => TableName::from_str(column),
                     _ => unimplemented!() 
                 },
-            column1: self.column1.clone(),
-            column2: self.column2.clone()
+            on: Filter{
+				condition: cond0, 
+				sub_filters: sub_filters,
+				connector: Connector::And,
+			}
         }
     }
 }
@@ -321,6 +357,5 @@ impl FromJoinType for iq::JoinType{
         }
     }
 }
-
 
 

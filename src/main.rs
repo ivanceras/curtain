@@ -1,10 +1,12 @@
+#![feature(plugin)]
+#![plugin(regex_macros)]
+extern crate regex;
 extern crate iron;
 extern crate mount;
 extern crate persistent;
 extern crate router;
 extern crate rustorm;
 extern crate rustc_serialize;
-extern crate codegenta;
 extern crate rand;
 #[macro_use]extern crate log;
 extern crate env_logger;
@@ -18,7 +20,7 @@ use router::Router;
 use std::str::FromStr;
 use std::env;
 use iron::prelude::*;
-use persistent::{Write, State};
+use persistent::{Write, State, Read};
 use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
 use global::GlobalPools;
@@ -31,6 +33,8 @@ mod window_service;
 mod global;
 mod data_service;
 mod from_query;
+mod app_service;
+mod validator;
 
 
 
@@ -45,15 +49,12 @@ fn main() {
     info!("starting up");
     
     let mut router = Router::new();
-    router
-        .get("/", say_hello)
-        .get("/window", window_service::window_http::http_list_window)
-        .get("/window/:table", window_service::window_http::http_get_window)
-        .get("/data/:table",data_service::data_http::http_data_query)
-        .delete("/data/:table",data_service::data_http::http_delete_query)
-        .post("/data/:table",data_service::data_http::http_insert)
-        .put("/data/:table",data_service::data_http::http_update)
-        ;
+    router.get("/", say_hello);
+    router.get("/window", window_service::window_http::http_list_window);
+    router.get("/window/:table", window_service::window_http::http_get_window);
+    router.get("/data/:table",data_service::data_http::http_data_query);
+    router.get("/app/:main_table",app_service::complex_query);
+
     let mut middleware = Chain::new(router);
     middleware.link(State::<GlobalPools>::both(GlobalPools::new()));
 	middleware.link_after(CORS);
@@ -61,6 +62,7 @@ fn main() {
     println!("listening on http://{}", host);
     Iron::new(middleware).http(host).unwrap();
 }
+
 
 struct CORS;
 
@@ -82,4 +84,5 @@ fn get_server_port() -> u16 {
     let port_str = env::var("PORT").unwrap_or(String::new());
     FromStr::from_str(&port_str).unwrap_or(8181)
 }
+
 

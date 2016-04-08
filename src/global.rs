@@ -10,8 +10,9 @@ use std::collections::BTreeMap;
 use rustorm::pool::Platform;
 use rustorm::database::DbError;
 use rustorm::database::Database;
+use rustorm::database::DatabaseDev;
 use std::sync::{Arc,Mutex, RwLock};
-
+use std;
 
 
 pub struct GlobalPools{
@@ -91,7 +92,7 @@ impl GlobalPools{
 			self.cache_map.insert(db_url.to_owned(), cache);
 		}
     }
-
+/*
 	pub fn get_connection(&mut self, db_url: &str)->Result<Platform, DbError>{
 		if self.has_cache(db_url){
 			let platform = self.get_cache(db_url).unwrap().get_connection();
@@ -103,6 +104,7 @@ impl GlobalPools{
 			self.get_connection(db_url)
 		}
 	}
+    */
 
 
 	pub fn cache_tables(&mut self, db_url: &str, tables: Vec<Table>){
@@ -133,7 +135,8 @@ pub struct Cache{
 impl Cache{
 	
 	fn new(db_url:&str)->Self{
-		let pool = ManagedPool::init(db_url,20).unwrap();
+		let pool = ManagedPool::init(db_url,10).unwrap();
+        println!("got pool");
 		Cache{
 			managed_pool: pool,
 			windows: None,
@@ -164,6 +167,119 @@ pub fn get_db_url(req: &Request)->Option<String>{
 		},
 		None => None
 	}
+}
+
+pub struct Context{
+    pub db_url: String,
+    arc: Arc<RwLock<GlobalPools>>,
+    platform: Option<Platform>,
+}
+
+impl Context{
+
+    pub fn new(req:&mut Request)->Context{
+        println!("Creating new context");
+        let db_url = get_db_url(req).unwrap();
+        let globals = GlobalPools::from_request(req);
+        
+
+        let context = Context{
+                        db_url: db_url.into(),
+                        arc: globals,
+                        platform: None
+                       };
+        println!("context here");
+        context
+    }
+    
+    pub fn db_dev<'a>(&'a mut self)->Result<&'a DatabaseDev,DbError>{
+        let platform = self.get_connection();
+        self.platform = Some(platform.unwrap());
+        println!("getting db dev");
+        Ok(self.platform.as_ref().unwrap().as_dev())
+    }
+    fn db_url(&self)->String{
+        self.db_url.to_owned()
+    }
+    pub fn db<'a>(&'a mut self)->Result<&'a Database,DbError>{
+        println!("getting db");
+        match self.ensure_has_connection(){
+            Ok(_) => Ok(self.platform.as_ref().unwrap().as_ref()),
+            Err(e) => Err(e)
+        }
+    }
+    fn ensure_has_connection(&mut self)->Result<(),DbError>{
+        println!("ensuring has connection");
+        if self.platform.is_none(){
+            let platform = self.get_connection();
+            match platform{
+                Ok(platform) => {
+                    self.platform = Some(platform);
+                    Ok(())
+                  },
+                Err(e) => {
+                    Err(e)
+                }
+            } 
+        }
+        else{
+            Ok(())
+        }
+    }
+
+    fn get_connection(&self)->Result<Platform,DbError>{
+        println!("getting connection..");
+		let has_cache = self.arc.read().unwrap().has_cache(&self.db_url);// note: need to finish the borrow so that write will not dead lock 
+        if has_cache {
+            let platform = self.arc.read().unwrap().get_cache(&self.db_url).unwrap().get_connection(); 
+            return Ok(platform);
+        }
+        else{
+            {
+            println!("no cache");
+            let cache = Cache::new(&self.db_url);
+            println!("obtaining a new 1");
+            let ref mut globals = *self.arc.write().unwrap();
+            println!("obtained a lock()");
+            let db_url = self.db_url.clone();
+            globals.cache_map.insert(db_url.clone(), cache);
+            println!("Adding it to the cache");
+            }
+            return self.get_connection();//try again
+       }
+
+    }
+
+    pub fn cache_tables(&self, tables: Vec<Table>){
+        let ref mut globals = *self.arc.write().unwrap();
+        globals.cache_tables(&self.db_url, tables);
+    
+    }
+
+    pub fn has_cached_tables(&self)->bool{
+        let ref globals = *self.arc.read().unwrap();
+        globals.has_cached_tables(&self.db_url)
+    }
+
+    pub fn get_cached_tables(&self)->Option<Vec<Table>>{
+        let ref globals = *self.arc.read().unwrap();
+        globals.get_cached_tables(&self.db_url)
+    }
+
+    pub fn has_cached_windows(&self)->bool{
+        let ref globals = *self.arc.read().unwrap();
+        globals.has_cached_windows(&self.db_url)
+    }
+
+    pub fn get_cached_windows(&self)->Option<Vec<Window>>{
+        let ref globals = *self.arc.read().unwrap();
+        globals.get_cached_windows(&self.db_url)
+    }
+
+    pub fn cache_windows(&self, windows: Vec<Window>){
+        let ref mut globals = *self.arc.write().unwrap();
+        globals.cache_windows(&self.db_url, windows);
+    }
 }
 
 

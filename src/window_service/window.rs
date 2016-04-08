@@ -4,7 +4,6 @@ use rustorm::table::Column;
 use std::collections::HashMap;
 use rustc_serialize::json;
 use rustorm::query::Query;
-use codegenta::generator;
 
 use rustorm::database::DatabaseDev;
 
@@ -122,7 +121,7 @@ impl Field{
             is_autocomplete:false,
             display_logic:None,
             display_length:None, 
-            default_value:column.default.clone(),
+            default_value:None,
         }
     }
     
@@ -148,7 +147,7 @@ impl Field{
             is_autocomplete:false,
             display_logic:None,
             display_length:None, 
-            default_value:column.default.clone(),
+            default_value:None,
         }
     }
     
@@ -187,7 +186,7 @@ pub struct Tab{
     pub info:Option<String>,
     ///which table does this tab corresponds to
     pub table:String,
-    pub schema:String,
+    pub schema:Option<String>,
     pub fields:Vec<Field>,
     /// extension tabs
     pub ext_tabs:Option<Vec<Tab>>,
@@ -447,7 +446,7 @@ pub struct Window{
     pub description:Option<String>,
     /// the table name used as identifier
     pub table: String,
-    pub schema: String,
+    pub schema: Option<String>,
     ///main tab, must have at least 1
     /// more helpful information about this window
     pub info:Option<String>,
@@ -463,7 +462,7 @@ impl Window{
             name: table.displayname(),
             description: table.comment.clone(),
             table: table.name.to_string(),
-            schema: table.schema.to_string(),
+            schema: table.schema.to_owned(),
             info: None,
             tab:Some(Tab::detailed_from_table(table, all_tables)),
         }
@@ -474,7 +473,7 @@ impl Window{
         Window{
             name: table.displayname(),
             table: table.name.to_string(),
-            schema: table.schema.to_string(),
+            schema: table.schema.to_owned(),
             description: table.comment.clone(),
             info: None,
             tab:None,
