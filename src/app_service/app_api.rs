@@ -30,43 +30,25 @@ use rustorm::query::source::ToSourceField;
 use rustorm::query::column_name::{ToColumnName,ColumnName};
 use rustc_serialize::json;
 
-pub fn complex_query(req: &mut Request)->IronResult<Response>{
-    let mut context = Context::new(req);
-	let validator = DbElementValidator::from_context(&mut context);
-	let complex_query = extract_complex_query(req);
-	match complex_query{
-		Ok((main_table_filter, rest_table_filter)) => {
-			let main_validated = main_table_filter.transform(&mut context, &validator);
-			match main_validated{
-				Ok(main_validated) => {
-					let mut rest_validated = vec![];
-					for rest in rest_table_filter{
-						match rest.transform(&mut context, &validator){
-							Ok(rtransformed) => {
-								rest_validated.push(rtransformed);
-							},
-							Err(e) => ()
-						}
-					}
-					let rest_data:Result<RestData,_> = retrieve_main_data(&mut context, &main_validated, &rest_validated);
-					println!("------>>>REST DATA: {:#?}", rest_data);
-					match rest_data{
-						Ok(rest_data) => {
-							let json_rest_data = json::encode(&rest_data).unwrap();
-							let mut response = Response::with((status::Ok, json_rest_data));
-							return Ok(response);
-						},
-						Err(e) => {
-						}
-					}
-				},
-				Err(e) => ()
+pub fn complex_query(context: &mut Context, main_table_filter: &TableFilter, rest_table_filter: &Vec<TableFilter>)->Result<RestData, ParseError>{
+	let validator = DbElementValidator::from_context(context);
+	let main_validated = main_table_filter.transform(context, &validator);
+	match main_validated{
+		Ok(main_validated) => {
+			let mut rest_validated = vec![];
+			for rest in rest_table_filter{
+				match rest.transform(context, &validator){
+					Ok(rtransformed) => {
+						rest_validated.push(rtransformed);
+					},
+						Err(e) => ()
+				}
 			}
-		}
-		Err(e) => ()
-	};
-    let mut response = Response::with((status::Ok, "A complex query..."));
-    Ok(response)
+			let rest_data:Result<RestData, ParseError> = retrieve_main_data(context, &main_validated, &rest_validated);
+			rest_data
+		},
+			Err(e) => Err(e) 
+	}
 }
 
 /// retrieve the data on this table using the query
@@ -81,8 +63,17 @@ pub fn complex_query(req: &mut Request)->IronResult<Response>{
 /// list of table data for each table names
 #[derive(Debug)]
 #[derive(RustcEncodable)]
-struct RestData{
+pub struct RestData{
 	table_dao: Vec<TableDao>,
+}
+
+impl RestData{
+	
+	fn empty()->Self{
+		RestData{
+			table_dao: vec![]
+		}
+	}
 }
 
 
@@ -94,6 +85,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		Some(ref query) => query.clone(),
 			None => Query::new()
 	};
+	println!("----->>> {:#?}", mquery);
 	mquery.from(&main_table.clone());
 	let main_dao_result = {
 		let db = match context.db(){
@@ -106,10 +98,18 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		}
 	};
 	table_dao.push(TableDao::from_dao_result(&main_dao_result, &main_table.complete_name()));
-	let main_focused_dao = &main_dao_result.dao[main_query.focused];
+	let main_focused_dao = if main_dao_result.dao.len() > main_query.focused{
+		&main_dao_result.dao[main_query.focused]
+	}else if main_dao_result.dao.len() > 0 {
+		warn!("focused index is out of bounds...");
+		&main_dao_result.dao[0]
+	}else{
+		warn!("this table is empty");
+		return Ok(RestData::empty());//returning empty result early
+	};
+	let main_focused_filter = create_main_query_join_filter_from_focused_dao(&main_table, &main_focused_dao);
 	let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
 	let mut main_with_focused_filter = main_filter.clone();
-	let main_focused_filter = create_main_query_join_filter_from_focused_dao(&main_table, main_focused_dao);
 	main_with_focused_filter.extend_from_slice(&main_focused_filter);
 	let main_window = match window_api::retrieve_window(context, &main_table.name){
 		Ok(main_window) => main_window,
@@ -192,6 +192,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		Err(ParseError::new("no main tab"))
 	}
 }
+
 
 fn build_query(main_table: &Table, ext_table: &Table, main_filter: &Vec<Filter>, rest_vquery: &Vec<ValidatedQuery>)->Query{
 	let mut ext_query = Query::select();
@@ -421,17 +422,7 @@ impl TableDao{
 	}
 }
 
-#[derive(Debug)]
-struct TableFilter{
-	table: String,
-	filter: Option<String>
-}
 
-#[derive(Debug)]
-struct ComplexQuery{
-	main: TableFilter,
-	rest: Vec<TableFilter>,
-}
 
 #[derive(Debug)]
 struct ValidatedQuery{
@@ -440,6 +431,11 @@ struct ValidatedQuery{
 	focused: usize,
 }
 
+#[derive(Debug)]
+pub struct TableFilter{
+	pub table: String,
+	pub filter: Option<String>
+}
 
 impl TableFilter{
 
@@ -510,61 +506,14 @@ fn extract_focused(iquery: &iq::Query)->usize{
 }
 
 #[derive(Debug)]
-struct ParseError{
+pub struct ParseError{
 	desc: String,
 }
 
 impl ParseError{
 	
-	fn new(m: &str)->Self{
+	pub fn new(m: &str)->Self{
 		ParseError{desc: m.to_owned()}
-	}
-}
-
-fn extract_complex_query(req: &mut Request)->Result<(TableFilter, Vec<TableFilter>), ParseError>{
-	println!("a complex app query");	
-	let main_table = req.extensions.get::<Router>().unwrap().find("main_table");
-	match main_table{
-		Some(main_table) => {
-			let query = &req.url.query;
-			let mut main_table_filter = TableFilter{
-					table: main_table.to_owned(),
-					filter: None
-				};
-				
-			let mut rest_table_filter = vec![];
-
-			if let &Some(ref query) = &req.url.query{
-				let table_queries:Vec<&str> = query.split("/").collect();
-				if table_queries.len() > 0{
-					main_table_filter.filter = Some(table_queries[0].to_owned());
-				};
-				let rest_query:Vec<&&str> = table_queries.iter().skip(1).collect();
-				for q in rest_query{
-					let table_filter: Vec<&str> = q.split("?").collect();
-					let table = if table_filter.len() > 0 {
-						Some(table_filter[0])
-					}else{None};
-
-					let filter = if table_filter.len() > 1 {
-						Some(table_filter[1].to_owned())
-					}else{None};
-
-					if let Some(tbl) = table{
-						let table_filter = TableFilter{
-							table: tbl.to_owned(),
-							filter: filter,
-						};
-						rest_table_filter.push(table_filter);
-					}
-
-				}
-			}
-			Ok((main_table_filter, rest_table_filter))
-		},
-		None => {
-			Err(ParseError::new("No main table specified"))
-		}
 	}
 }
 

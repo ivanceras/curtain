@@ -53,7 +53,7 @@ fn main() {
     router.get("/window", window_service::window_http::http_list_window);
     router.get("/window/:table", window_service::window_http::http_get_window);
     router.get("/data/:table",data_service::data_http::http_data_query);
-    router.get("/app/:main_table",app_service::complex_query);
+    router.get("/app/:main_table",app_service::app_http::http_complex_query);
 
     let mut middleware = Chain::new(router);
     middleware.link(State::<GlobalPools>::both(GlobalPools::new()));
