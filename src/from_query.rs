@@ -39,24 +39,18 @@ impl FromQuery for iq::Query {
             };
         }
         for j in &self.join{
-            println!("join: {:#?}", j);
-            println!("to_join: {:#?}", j.transform(validator));
             q.joins.push(j.transform(validator));
         }
         for f in &self.filters{
-            println!("filter: {:?}", f);
             q.add_filter(f.transform(validator));
         }
         for g in &self.group_by{
-            println!("group_by: {:?}", g);
             q.group_by.push(g.smart_transform(validator));
         }
         for h in &self.having{
-            println!("having: {:?}", h);
             q.having.push(h.transform(validator));
         }
         for o in &self.order_by{
-            println!("order_by: {:?}", o);
             q.order_by.push(o.transform(validator));
         }
         match &self.range{
