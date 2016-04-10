@@ -29,12 +29,13 @@ use iron::AfterMiddleware;
 use unicase::UniCase;
 use iron::headers;
 
-mod window_service;
 mod global;
 mod data_service;
 mod from_query;
-mod app_service;
 mod validator;
+mod app_service;
+mod window_service;
+mod lookup_service;
 
 
 
@@ -54,6 +55,7 @@ fn main() {
     router.get("/window/:table", window_service::window_http::http_get_window);
     router.get("/data/:table",data_service::data_http::http_data_query);
     router.get("/app/:main_table",app_service::app_http::http_complex_query);
+    router.get("/lookup/:table", lookup_service::lookup_http::http_get_lookup_data);
 
     let mut middleware = Chain::new(router);
     middleware.link(State::<GlobalPools>::both(GlobalPools::new()));

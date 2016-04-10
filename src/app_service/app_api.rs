@@ -67,19 +67,15 @@ pub struct RestData{
 	table_dao: Vec<TableDao>,
 }
 
-impl RestData{
-	
-	fn empty()->Self{
-		RestData{
-			table_dao: vec![]
-		}
-	}
-}
 
 
 /// retrieve the window data for all tabs involved in this window
 fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<RestData, ParseError>{
 	let main_table:Table = main_query.table.clone();
+	let main_window = match window_api::retrieve_window(context, &main_table.name){
+		Ok(main_window) => main_window,
+			Err(e) => {return Err(ParseError::new("unable to obtain main window"));}
+	};
 	let mut table_dao = vec![];
 	let mut mquery: Query = match main_query.query{
 		Some(ref query) => query.clone(),
@@ -105,16 +101,14 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		&main_dao_result.dao[0]
 	}else{
 		warn!("this table is empty");
-		return Ok(RestData::empty());//returning empty result early
+		return Ok(RestData{
+			table_dao: vec![],
+		});//returning empty result early
 	};
 	let main_focused_filter = create_main_query_join_filter_from_focused_dao(&main_table, &main_focused_dao);
 	let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
 	let mut main_with_focused_filter = main_filter.clone();
 	main_with_focused_filter.extend_from_slice(&main_focused_filter);
-	let main_window = match window_api::retrieve_window(context, &main_table.name){
-		Ok(main_window) => main_window,
-			Err(e) => {return Err(ParseError::new("unable to obtain main window"));}
-	};
 	if let Some(main_tab) = main_window.tab{
 		if let &Some(ref ext_tabs) = &main_tab.ext_tabs{
 			for ext_tab in ext_tabs{
@@ -157,7 +151,6 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		if let &Some(ref has_many_indirect_tabs) = &main_tab.has_many_indirect_tabs{
 			for indirect in has_many_indirect_tabs{
 				// will use inner join to linker table, and inner join to the indirect
-				//println!("indirect: {:#?}", indirect);
 				let indirect_table = match window_api::get_matching_table(context, &indirect.table){
 					Some(indirect_table) => indirect_table,
 						None => {return Err(ParseError::new("Unable to get table for extension"));}
@@ -168,7 +161,6 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 					Some(linker_table) => linker_table,
 						None => { return Err(ParseError::new("linker table can not be found")); }
 				};
-				//println!("linker table of {}: {:#?}", indirect.table, linker_table);
 				let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
 
 				let debug = ind_query.debug_build(context.db().unwrap());
@@ -185,7 +177,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 			}
 		}
 		let rest_data = RestData{
-			table_dao: table_dao
+			table_dao: table_dao,
 		};
 		Ok(rest_data)
 	}else{
@@ -254,7 +246,6 @@ fn build_query_with_linker(main_table: &Table, indirect_table: &Table, main_filt
 fn extract_comprehensive_filter(main_table: &Table, main_query: &Query)->Vec<Filter>{
 	let mut filters = vec![];
 	for filter in &main_query.filters{
-		println!("comprehensive filter: {:?}", filter);
 		let mut condition = filter.condition.clone();
 		let left = match &condition.left{
 			&Operand::ColumnName(ref column) => {
@@ -264,7 +255,6 @@ fn extract_comprehensive_filter(main_table: &Table, main_query: &Query)->Vec<Fil
 				}else{
 					column.table = Some(main_table.name.to_owned())
 				}
-				println!("left column: {:?}", column);
 				Operand::ColumnName(column)
 			}
 			_ => condition.left.clone()
@@ -294,7 +284,6 @@ fn create_on_filter(main_table: &Table, table: &Table)->Filter{
 	let foreign_columns = table.get_foreign_columns_to_table(&main_table);
 	let mut filters = vec![];
 	for fc in foreign_columns{
-		println!("foreign column: {:#?}", fc);
 		let fk = match fc.foreign{
 			Some(ref fk) => format!("{}.{}",fk.table, fk.column),
 			None => panic!("no foreign key found"),
@@ -321,8 +310,6 @@ fn create_on_filter(main_table: &Table, table: &Table)->Filter{
 			first_filter.sub_filters.push(rfilter.clone());
 		}
 	}
-	println!("on filters: {:#?}", filters);
-	println!("first filter: {:#?}", first_filter);
 	first_filter
 }
 
@@ -345,16 +332,6 @@ impl QuerySearch for Vec<ValidatedQuery>{
 
 }
 
-/// retrieve data from table utilizing the main table as the first table with its associated filter and left joining the vquery
-fn retrieve_data_from_table(context: &mut Context, vquery: &ValidatedQuery, main_table: &Table, main_filter: &Vec<Filter>){
-	let mut query = Query::select();
-	let table = vquery.table.to_owned();
-	query.only_from(&table);
-	//get the foreign key of table that points to the primary key of the main table
-	println!("query: {:#?}", query);
-	let foreign_columns = table.get_foreign_columns_to_table(&main_table);
-	println!("foreign columns: {:#?}", foreign_columns);
-}
 
 fn create_main_query_join_filter_from_focused_dao(table: &Table, focused_dao: &Dao)->Vec<Filter>{
 	let mut filters = vec![];
@@ -449,11 +426,9 @@ impl TableFilter{
 			match self.filter{
 				Some(ref filter) => {
 					let parsed = inquerest::query(&filter);
-					println!("parsed: {:#?}",parsed);
 					match parsed{
 						Ok(parsed) => {
 							let focused = extract_focused(&parsed);
-							println!("focused: {}", focused);
 							let transformed = parsed.transform(&validator);
 							let vquery = ValidatedQuery{
 								table: table,

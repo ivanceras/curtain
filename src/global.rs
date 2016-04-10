@@ -136,7 +136,6 @@ impl Cache{
 	
 	fn new(db_url:&str)->Self{
 		let pool = ManagedPool::init(db_url,10).unwrap();
-        println!("got pool");
 		Cache{
 			managed_pool: pool,
 			windows: None,
@@ -178,7 +177,6 @@ pub struct Context{
 impl Context{
 
     pub fn new(req:&mut Request)->Context{
-        println!("Creating new context");
         let db_url = get_db_url(req).unwrap();
         let globals = GlobalPools::from_request(req);
         
@@ -188,28 +186,24 @@ impl Context{
                         arc: globals,
                         platform: None
                        };
-        println!("context here");
         context
     }
     
     pub fn db_dev<'a>(&'a mut self)->Result<&'a DatabaseDev,DbError>{
         let platform = self.get_connection();
         self.platform = Some(platform.unwrap());
-        println!("getting db dev");
         Ok(self.platform.as_ref().unwrap().as_dev())
     }
     fn db_url(&self)->String{
         self.db_url.to_owned()
     }
     pub fn db<'a>(&'a mut self)->Result<&'a Database,DbError>{
-        println!("getting db");
         match self.ensure_has_connection(){
             Ok(_) => Ok(self.platform.as_ref().unwrap().as_ref()),
             Err(e) => Err(e)
         }
     }
     fn ensure_has_connection(&mut self)->Result<(),DbError>{
-        println!("ensuring has connection");
         if self.platform.is_none(){
             let platform = self.get_connection();
             match platform{
@@ -227,28 +221,22 @@ impl Context{
         }
     }
 
-    fn get_connection(&self)->Result<Platform,DbError>{
-        println!("getting connection..");
+	fn get_connection(&self)->Result<Platform,DbError>{
 		let has_cache = self.arc.read().unwrap().has_cache(&self.db_url);// note: need to finish the borrow so that write will not dead lock 
-        if has_cache {
-            let platform = self.arc.read().unwrap().get_cache(&self.db_url).unwrap().get_connection(); 
-            return Ok(platform);
-        }
-        else{
-            {
-            println!("no cache");
-            let cache = Cache::new(&self.db_url);
-            println!("obtaining a new 1");
-            let ref mut globals = *self.arc.write().unwrap();
-            println!("obtained a lock()");
-            let db_url = self.db_url.clone();
-            globals.cache_map.insert(db_url.clone(), cache);
-            println!("Adding it to the cache");
-            }
-            return self.get_connection();//try again
-       }
-
-    }
+		if has_cache {
+			let platform = self.arc.read().unwrap().get_cache(&self.db_url).unwrap().get_connection(); 
+			return Ok(platform);
+		}
+		else{
+			{// this is important to finish scope of arc and allow further write/read
+				let cache = Cache::new(&self.db_url);
+				let ref mut globals = *self.arc.write().unwrap();
+				let db_url = self.db_url.clone();
+				globals.cache_map.insert(db_url.clone(), cache);
+			}
+			return self.get_connection();//try again
+		}
+	}
 
     pub fn cache_tables(&self, tables: Vec<Table>){
         let ref mut globals = *self.arc.write().unwrap();
