@@ -1,4 +1,3 @@
-
 use iron::status;
 use router::Router;
 use std::str::FromStr;
@@ -32,6 +31,9 @@ use rustc_serialize::json;
 use app_service::app_api::ParseError;
 use app_service::app_api::TableFilter;
 use app_service;
+use std::io::Read;
+use rustc_serialize::json::{Json};
+use app_service::app_api::ChangeSet;
 
 
 
@@ -50,7 +52,24 @@ pub fn http_complex_query(req: &mut Request)->IronResult<Response>{
 }
 
 pub fn http_update_data(req: &mut Request)->IronResult<Response>{
-	panic!("soon!...")
+    let mut context = Context::new(req);
+	let main_table = req.extensions.get::<Router>().unwrap().find("main_table");
+	let mut body = String::new(); 
+	req.body.read_to_string(&mut body);
+
+	match main_table{
+		Some( main_table ) => {
+			println!("body: {}",body);
+			let json = Json::from_str(&body).unwrap();
+			let changeset:Result<ChangeSet, ParseError> = ChangeSet::from_json(&json);
+			let json_pretty = format!("{}",json::as_pretty_json(&json));
+			println!("json: {}",json_pretty);
+			Ok(Response::with((status::Ok, json_pretty)))
+		}
+		None => {
+			Ok(Response::with((status::BadRequest, "No main table specified")))
+		}
+	}
 }
 
 fn extract_params(req: &mut Request)->Result<(String, Option<String>),ParseError>{

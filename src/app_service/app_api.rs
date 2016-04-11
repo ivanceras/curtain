@@ -1,4 +1,3 @@
-
 use iron::status;
 use std::str::FromStr;
 use std::env;
@@ -31,6 +30,10 @@ use rustc_serialize::json;
 use std::collections::BTreeMap;
 use rustorm::dao::Value;
 use data_service::data_api;
+use uuid::Uuid;
+use rustc_serialize::json::Json;
+
+
 
 pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<RestData, ParseError>{
 	let validator = DbElementValidator::from_context(context);
@@ -506,7 +509,7 @@ pub struct TableFilter{
 
 impl TableFilter{
 
-	pub fn transform(&self, context: &mut Context, validator: &DbElementValidator)->Result<ValidatedQuery, ParseError>{
+	fn transform(&self, context: &mut Context, validator: &DbElementValidator)->Result<ValidatedQuery, ParseError>{
 
 		if validator.is_valid_table(&self.table){
 			let table = match window_api::get_matching_table(context, &self.table){
@@ -635,23 +638,93 @@ impl ParseError{
 
 /// when a dao is updated
 #[derive(Debug)]
-struct DaoUpdate{
-	original: Dao,
-	updated: Dao,
+#[derive(RustcEncodable)]
+pub struct DaoUpdate{
+	pub original: Dao,
+	pub updated: Dao,
 }
 
 impl DaoUpdate{
 		
 	/// get only the minimal update by including only the 
 	/// changed values
-	fn minimize_update(&self)->Dao{
+	pub fn minimize_update(&self)->Dao{
+		let mut changeset = Dao::new();
 		let original_map = self.original.as_map();
 		println!("original map: {:#?}", original_map);
 		let keys = original_map.keys();
 		for key in keys{
 			println!("key: {:?}", key);
+			let updated_value = self.updated.get_value(key);
+			let orig_value = self.original.get_value(key);
+			if updated_value == orig_value{
+				println!("no change for {}", key);
+			}else{
+				changeset.set_value(key, updated_value);
+			}
 		}
-		panic!("not yet!");
+		changeset
+	}
+}
+
+#[test]
+fn test_dao_minimize_update(){
+	let mut dao1 = Dao::new();
+	dao1.set_value("key1",Value::String("value1".to_owned()));
+	dao1.set_value("key2",Value::String("value2".to_owned()));
+
+	let mut dao2 = dao1.clone();
+	dao2.set_value("key2",Value::String("I changed this".to_owned()));
+
+	let update = DaoUpdate{
+		original: dao1.clone(),
+		updated: dao2.clone()
+	};
+	let min = update.minimize_update();
+	println!("min: {:#?}",min);
+	let mut expected = Dao::new();
+	expected.set_value("key2", Value::String("I changed this".to_owned()));
+
+	assert_eq!(expected, min);
+}
+
+/// Dao for inserting, but with record ID to
+/// identify which record it is before actually inserting into the database
+/// which may change the primary key value, due to database custom function
+/// that may have been used to generate it.
+/// The record_id is useful when a referring record from some other
+/// table is also created which also refers to this main record.
+/// This is akin to simultaneously inserting relative records into different table
+/// the primary key of the main record will have to return and will be used in the referring table
+/// for the succedding insert operation
+#[derive(Debug)]
+#[derive(RustcEncodable)]
+pub struct DaoInsert{
+	dao: Dao,
+	pub referred_record_id: Option<Uuid>, // the main record_id to refer to
+	pub record_id: Uuid, //all record to be inserted must have this
+}
+
+impl DaoInsert{
+	
+	/// use this when inserting to main table
+	pub fn from_dao(dao: &Dao)->Self{
+		DaoInsert{
+			dao: dao.clone(),
+			referred_record_id: None,
+			record_id: Uuid::new_v4()
+		}
+	}
+
+	/// use this when inserting in ext_table, has_many, indirect tabs
+	/// and when the main record has just been entered but will batch together
+
+	pub fn new_with_new_referred_record(dao: &Dao, referred_record_id: &Uuid)->Self{
+		DaoInsert{
+			dao: dao.clone(),
+			referred_record_id: Some(referred_record_id.clone()),
+			record_id: Uuid::new_v4(),
+		}
 	}
 }
 
@@ -660,16 +733,26 @@ impl DaoUpdate{
 /// all the updated ones will be updated 2nd
 /// all the deleted ones will be deleted last
 /// deletion may cause referential integrity errors
+/// rename to BatchData?
 #[derive(Debug)]
-struct UpdatableData{
-	table: String,
-	inserted: Vec<Dao>,
-	deleted: Vec<Dao>,
-	updated: Vec<DaoUpdate>
+#[derive(RustcEncodable)]
+pub struct UpdatableData{
+	pub table: String,
+	pub inserted: Vec<DaoInsert>,
+	pub deleted: Vec<Dao>,// will use the primary key value if avaialble, else the uniques, else all the matching record
+	pub updated: Vec<DaoUpdate>
 }
 
 /// the list of changesets for each table
 #[derive(Debug)]
-struct ChangeSet{
-	data: Vec<UpdatableData>,
+#[derive(RustcEncodable)]
+pub struct ChangeSet{
+	pub data: Vec<UpdatableData>,
+}
+
+impl ChangeSet{
+	
+	pub fn from_json(json: &Json)->Result<Self, ParseError>{
+		panic!("soon!");
+	}
 }
