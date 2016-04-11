@@ -417,6 +417,12 @@ impl Tab{
     /// directly referring table
     /// What to do with the case when there is too many table referring this table
     /// Many just add: "used in", but not display the whole details of the tab using it
+    /// Solution: Determine popular tables or global tables where they are referenced by most(90%) of the tables in the database
+    /// These table includes "users(user_id)", "organization(org_id)"
+    /// In turn these popular tables will have a lot of has_many tabs.
+    /// To avoid these issue, limit the number of has_tabs in that refers to the popular table
+    /// Related table such as "product" which has buyers and sellers but refers to a popular "users(user_id)" table.
+    /// Usually the lookup column name (i.e "owner_id", "customer_id"), will be different from the usual referrer column name "user_id".
     fn derive_has_many_tabs(table:&Table, ext_tables:&Vec<&Table>, all_tables:&Vec<Table>)->Vec<Tab>{
         let mut tabs = Vec::new();
         // all fields of has_many tables will be listed on the window
@@ -487,42 +493,6 @@ impl Window{
         }
     }
     
-    /// build the SQL query based on the table involved in the tabs
-    ///
-    /// * columns are enumerated based on the is_displayed
-    ///
-    /// * values of has_ones tables, primary columns and columns marked as identifier are the only values extracted
-    ///    they can involved all the unique values of the table
-    ///    they identifier value of the matching primary value will be displayed on the field
-    ///    has_one table values are extracted with another query, the correct value is marked with is_chosen = true
-    /// 
-    /// * ext_tabs 1:1
-    ///    extension tabs table values are extracted as a normal tab itself.
-    ///    extension tables are extracted using left join
-    /// 
-    ///  * has_many direct  1:M
-    ///      has_many direct tables are extracted using another query
-    ///      the enumerated columns is based on the is_displayed field
-    ///      the records of the fields that are drop down will still be all retrieved since the user can 
-    ///      alter these values, the selected value will is based on the id of the table
-    ///
-    //// * has_many indirect M:N
-    ///     has_many indirect tables are extracted using dual left joins
-    ///     the main table is left join to the direct table left joining the indirect table.
-    ///
-    /// This function should be marked as extract_data, based on the window structure
-    /// has_many should be extracted independently, since they are not immediate data and will cause a longer load times
-    /// while the user may not to see that data.
-    
-    fn build_query(&self){
-        let q = Query::select();
-        let tab = &self.tab.as_ref().unwrap();
-        let table = &tab.table;
-        let page_size = &tab.page_size;
-        let fields = &tab.fields;
-        // retrieve the has_many only of the first record
-        
-    }
 }
 
 /// list a sumamary of window tables

@@ -134,3 +134,15 @@ http://stackoverflow.com/questions/13304572/how-can-pg-column-size-be-smaller-th
 
 Server side code in rust, and can be loaded dynamically using nodejs and invoke appropriate functions
 Can have optional client side plugin to enchance the UI display
+
+
+## April 10, 2016
+* [X] Add focused record in complex query focused_record=ef12321-abeafd,0
+* [X] Add a system to save changeset
+Note: indirect linker table will automatically be filled up where there is a new record for the main table and the indirect table.
+
+Question: How will the indirect table determine which primary key value it is supposed to link when the main table data has not been saved in the database yet.
+Solution: use a temporary UUID in the client side. after saving it to the database, this UUID may be replaced with the db one. then mapping it to the indirect table and linker to update the value before putting the record in the linker table.
+
+* TODO: Make a cascading Error for each usecase
+

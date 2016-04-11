@@ -34,8 +34,8 @@ use app_service::app_api::TableFilter;
 use app_service;
 
 
-pub fn json_complex_query(context: &mut Context, main_table_filter: &TableFilter, rest_table_filter: &Vec<TableFilter>)->String{
-	match app_service::app_api::complex_query(context, main_table_filter, rest_table_filter){
+pub fn json_complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->String{
+	match app_service::app_api::complex_query(context, main_table, url_query){
 		Ok(rest_data) => {
 			json::encode(&rest_data).unwrap()
 		}

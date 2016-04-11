@@ -109,7 +109,7 @@ fn correct_condition(table: &Table, condition: &Condition)->Condition{
 }
 
 /// original value convert to type
-fn correct_value_type(orig: &Value, to_type: &Type)->Value{
+pub fn correct_value_type(orig: &Value, to_type: &Type)->Value{
 	println!("converting {:?} to {:?}", orig, to_type);
 	if orig.get_type() == *to_type {
 		return orig.clone();

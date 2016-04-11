@@ -1,6 +1,5 @@
 
 use iron::status;
-use router::Router;
 use std::str::FromStr;
 use std::env;
 use iron::prelude::*;
@@ -29,9 +28,13 @@ use rustorm::query::{TableName,ToTableName};
 use rustorm::query::source::ToSourceField;
 use rustorm::query::column_name::{ToColumnName,ColumnName};
 use rustc_serialize::json;
+use std::collections::BTreeMap;
+use rustorm::dao::Value;
+use data_service::data_api;
 
-pub fn complex_query(context: &mut Context, main_table_filter: &TableFilter, rest_table_filter: &Vec<TableFilter>)->Result<RestData, ParseError>{
+pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<RestData, ParseError>{
 	let validator = DbElementValidator::from_context(context);
+    let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
 	let main_validated = main_table_filter.transform(context, &validator);
 	match main_validated{
 		Ok(main_validated) => {
@@ -49,6 +52,42 @@ pub fn complex_query(context: &mut Context, main_table_filter: &TableFilter, res
 		},
 			Err(e) => Err(e) 
 	}
+}
+
+fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableFilter, Vec<TableFilter>){
+    let mut main_table_filter = TableFilter{
+            table: main_table.to_owned(),
+           filter: None
+    };
+    let mut rest_table_filter = vec![];
+
+    if let &Some(ref query) = url_query{
+        let table_queries:Vec<&str> = query.split("/").collect();
+        if table_queries.len() > 0{
+            main_table_filter.filter = Some(table_queries[0].to_owned());
+        };
+        let rest_query:Vec<&&str> = table_queries.iter().skip(1).collect();
+        for q in rest_query{
+            let table_filter: Vec<&str> = q.split("?").collect();
+            let table = if table_filter.len() > 0 {
+                Some(table_filter[0])
+            }else{None};
+
+            let filter = if table_filter.len() > 1 {
+                Some(table_filter[1].to_owned())
+            }else{None};
+
+            if let Some(tbl) = table{
+                let table_filter = TableFilter{
+                        table: tbl.to_owned(),
+                        filter: filter,
+                };
+                rest_table_filter.push(table_filter);
+            }
+
+        }
+    }
+    (main_table_filter, rest_table_filter)
 }
 
 /// retrieve the data on this table using the query
@@ -82,7 +121,11 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 			None => Query::new()
 	};
 	println!("----->>> {:#?}", mquery);
+	let main_table_name = main_table.to_table_name();
+	mquery.enumerate_from_table(&main_table_name);
 	mquery.from(&main_table.clone());
+	let main_debug = mquery.debug_build(context.db().unwrap());
+	println!("MAIN debug sql: {}", main_debug);
 	let main_dao_result = {
 		let db = match context.db(){
 			Ok(db) => db,
@@ -93,92 +136,90 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 				Err(e) => {return Err(ParseError::new("unable to retrieve main dao results"));}
 		}
 	};
-	table_dao.push(TableDao::from_dao_result(&main_dao_result, &main_table.complete_name()));
-	let main_focused_dao = if main_dao_result.dao.len() > main_query.focused{
-		&main_dao_result.dao[main_query.focused]
-	}else if main_dao_result.dao.len() > 0 {
-		warn!("focused index is out of bounds...");
-		&main_dao_result.dao[0]
-	}else{
-		warn!("this table is empty");
-		return Ok(RestData{
-			table_dao: vec![],
-		});//returning empty result early
-	};
-	let main_focused_filter = create_main_query_join_filter_from_focused_dao(&main_table, &main_focused_dao);
-	let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
-	let mut main_with_focused_filter = main_filter.clone();
-	main_with_focused_filter.extend_from_slice(&main_focused_filter);
+
+	// all the other table dao will not be retrieved when there is no focused record on the main tab
+
 	if let Some(main_tab) = main_window.tab{
-		if let &Some(ref ext_tabs) = &main_tab.ext_tabs{
-			for ext_tab in ext_tabs{
-				let ext_table = match window_api::get_matching_table(context, &ext_tab.table){
-					Some(ext_table) => ext_table,
-						None => {return Err(ParseError::new("Unable to get table for extension"));}
-				};
-				let mut ext_query = build_query(&main_table, &ext_table, &main_with_focused_filter, rest_vquery);
-				let debug = ext_query.debug_build(context.db().unwrap());
-				println!("debug sql: {}", debug);
-				match ext_query.retrieve(context.db().unwrap()){
-					Ok(dao_result) => {
-						table_dao.push(TableDao::from_dao_result(&dao_result, &ext_table.complete_name()));
-					},
-						Err(e) => {
-							return Err(ParseError::new("unable to retrove data in main table"));
+		if let Some(main_focused_dao) = extract_focused_dao(&main_table, &main_dao_result.dao, &main_query.focus_param){
+			let main_dao_state = mark_focused_record(&main_dao_result.dao, &main_focused_dao);
+			let main_table_dao = TableDao{
+									table: main_table.complete_name(), 
+									dao_list: main_dao_state
+								};
+			table_dao.push(main_table_dao);
+
+			let main_focused_filter = create_main_query_join_filter_from_focused_dao(&main_table, &main_focused_dao);
+			let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
+			let mut main_with_focused_filter = main_filter.clone();
+			main_with_focused_filter.extend_from_slice(&main_focused_filter);
+			if let &Some(ref ext_tabs) = &main_tab.ext_tabs{
+				for ext_tab in ext_tabs{
+					let ext_table = match window_api::get_matching_table(context, &ext_tab.table){
+						Some(ext_table) => ext_table,
+							None => {return Err(ParseError::new("Unable to get table for extension"));}
+					};
+					let mut ext_query = build_query(&main_table, &ext_table, &main_with_focused_filter, rest_vquery);
+					let debug = ext_query.debug_build(context.db().unwrap());
+					println!("debug sql: {}", debug);
+					match ext_query.retrieve(context.db().unwrap()){
+						Ok(dao_result) => {
+							table_dao.push(TableDao::from_dao_result(&dao_result, &ext_table.complete_name()));
+						},
+							Err(e) => {
+								return Err(ParseError::new("unable to retrove data in main table"));
+							}
+					}
+				}
+			}
+			if let &Some(ref has_many_tabs) = &main_tab.has_many_tabs{
+				for has_many in has_many_tabs{
+					let has_table = match window_api::get_matching_table(context, &has_many.table){
+						Some(has_table) => has_table,
+							None => {return Err(ParseError::new("Unable to get table for extension"));}
+					};
+					let mut has_query = build_query(&main_table, &has_table, &main_with_focused_filter, rest_vquery);
+					let debug = has_query.debug_build(context.db().unwrap());
+					println!("debug sql: {}", debug);
+					match has_query.retrieve(context.db().unwrap()){
+						Ok(dao_result) => {
+							table_dao.push(TableDao::from_dao_result(&dao_result, &has_table.complete_name()));
 						}
-				}
-			}
-		}
-		if let &Some(ref has_many_tabs) = &main_tab.has_many_tabs{
-			for has_many in has_many_tabs{
-				let has_table = match window_api::get_matching_table(context, &has_many.table){
-					Some(has_table) => has_table,
-						None => {return Err(ParseError::new("Unable to get table for extension"));}
-				};
-				let mut has_query = build_query(&main_table, &has_table, &main_with_focused_filter, rest_vquery);
-				let debug = has_query.debug_build(context.db().unwrap());
-				println!("debug sql: {}", debug);
-				match has_query.retrieve(context.db().unwrap()){
-					Ok(dao_result) => {
-						table_dao.push(TableDao::from_dao_result(&dao_result, &has_table.complete_name()));
-					}
-					Err(e) => {
-						return Err(ParseError::new("unable to retrieve data in has many table"));
+						Err(e) => {
+							return Err(ParseError::new("unable to retrieve data in has many table"));
+						}
 					}
 				}
 			}
-		}
-		if let &Some(ref has_many_indirect_tabs) = &main_tab.has_many_indirect_tabs{
-			for indirect in has_many_indirect_tabs{
-				// will use inner join to linker table, and inner join to the indirect
-				let indirect_table = match window_api::get_matching_table(context, &indirect.table){
-					Some(indirect_table) => indirect_table,
-						None => {return Err(ParseError::new("Unable to get table for extension"));}
-				};
-				assert!(indirect.linker_table.is_some(), format!("indirect tab {} must have a linker table specified", indirect.table));
-				let linker_table_name = &indirect.linker_table.as_ref().unwrap();
-				let linker_table =match window_api::get_matching_table(context, &linker_table_name){
-					Some(linker_table) => linker_table,
-						None => { return Err(ParseError::new("linker table can not be found")); }
-				};
-				let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
+			if let &Some(ref has_many_indirect_tabs) = &main_tab.has_many_indirect_tabs{
+				for indirect in has_many_indirect_tabs{
+					// will use inner join to linker table, and inner join to the indirect
+					let indirect_table = match window_api::get_matching_table(context, &indirect.table){
+						Some(indirect_table) => indirect_table,
+							None => {return Err(ParseError::new("Unable to get table for extension"));}
+					};
+					assert!(indirect.linker_table.is_some(), format!("indirect tab {} must have a linker table specified", indirect.table));
+					let linker_table_name = &indirect.linker_table.as_ref().unwrap();
+					let linker_table =match window_api::get_matching_table(context, &linker_table_name){
+						Some(linker_table) => linker_table,
+							None => { return Err(ParseError::new("linker table can not be found")); }
+					};
+					let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
 
-				let debug = ind_query.debug_build(context.db().unwrap());
-				println!("indirect query debug sql: {}", debug);
-				match ind_query.retrieve(context.db().unwrap()){
-					Ok(dao_result) => {
-						table_dao.push(TableDao::from_dao_result(&dao_result, &indirect_table.complete_name()));
+					let debug = ind_query.debug_build(context.db().unwrap());
+					println!("indirect query debug sql: {}", debug);
+					match ind_query.retrieve(context.db().unwrap()){
+						Ok(dao_result) => {
+							table_dao.push(TableDao::from_dao_result(&dao_result, &indirect_table.complete_name()));
+						}
+						Err(e) => {
+							return Err(ParseError::new("Unable to retrieve data from indirect table"));
+						}
 					}
-					Err(e) => {
-						return Err(ParseError::new("Unable to retrieve data from indirect table"));
-					}
-				}
 
+				}
 			}
 		}
-		let rest_data = RestData{
-			table_dao: table_dao,
-		};
+		let rest_data = RestData{ table_dao: table_dao};
 		Ok(rest_data)
 	}else{
 		Err(ParseError::new("no main tab"))
@@ -239,6 +280,66 @@ fn build_query_with_linker(main_table: &Table, indirect_table: &Table, main_filt
 		}
 	}
 	query
+}
+
+fn extract_focused_dao(table:&Table, dao_list: &Vec<Dao>, focus_param: &Option<FocusParam>)->Option<Dao>{
+	if let &Some(ref focus_param) = focus_param{
+		match focus_param{
+			&FocusParam::Index(index) => {
+				if dao_list.len() > index {
+					Some(dao_list[index].clone())
+				}else{
+					None
+				}
+			},
+			&FocusParam::PrimaryBlob(ref blob) => {
+				let pkeys = table.primary_columns();
+				let blob: Vec<&str> = blob.split(",").collect();
+				assert!(pkeys.len() ==  blob.len(), "focused_record should only have the same length as the number of primary keys");
+				let mut needle: BTreeMap<String, Value> = BTreeMap::new();
+				for i in 0..pkeys.len(){
+					let pk = pkeys[i];
+					let bvalue = blob[i];
+					let value = Value::String(bvalue.to_owned());
+					let corrected_value = data_api::correct_value_type(&value, &pk.data_type);
+					needle.insert(pk.name.to_owned(), corrected_value);
+				}
+				println!("focused record map: {:#?}", needle);
+				let focused_dao = find_from_dao_list(dao_list, &needle);
+				println!("focused dao: {:#?}", focused_dao);
+				focused_dao
+			}
+		}
+	}else{
+		None
+	}
+}
+
+fn match_needle(dao:&Dao, needle: &BTreeMap<String, Value>)->bool{
+	let mut matches = 0;
+	for key in needle.keys(){
+		let dao_value = dao.get_value(key);
+		let needle_value = needle.get(key);
+		if let Some(needle_value) = needle_value{
+			if needle_value == &dao_value{
+				println!("we have a match here");
+				matches += 1;
+			}else{
+				println!("1 key didnt match");
+				return false;
+			}
+		}
+	}
+	needle.keys().len() == matches
+}
+
+fn find_from_dao_list(dao_list:&Vec<Dao>, needle: &BTreeMap<String, Value>)->Option<Dao>{
+	for dao in dao_list{
+		if match_needle(dao, needle){
+			return Some(dao.clone());
+		}	
+	}
+	None
 }
 
 /// extract the filters of this query from main table, but adds details to the column names to avoid unambigous feild
@@ -344,19 +445,9 @@ fn create_main_query_join_filter_from_focused_dao(table: &Table, focused_dao: &D
 	filters
 }
 
-/// determines whether to update, insert the data
-#[derive(Debug)]
-#[derive(RustcEncodable)]
-enum DataState{
-	Orig, //original record, untouched
-	Inserted,// a newly inserted record
-	Dirty, // the record is edited and will be updated to the database
-	Deleted, // record is deleted
-}
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 struct DaoState{
-	state: DataState,
 	focused: bool,
 	dao: Dao,
 }
@@ -365,7 +456,6 @@ impl DaoState{
 
 	fn from_dao(dao: Dao)->Self{
 		DaoState{
-			state: DataState::Orig,
 			focused: false,
 			dao: dao,
 		}
@@ -405,7 +495,7 @@ impl TableDao{
 struct ValidatedQuery{
 	table: Table,
 	query: Option<Query>,
-	focused: usize,
+	focus_param: Option<FocusParam>
 }
 
 #[derive(Debug)]
@@ -428,12 +518,12 @@ impl TableFilter{
 					let parsed = inquerest::query(&filter);
 					match parsed{
 						Ok(parsed) => {
-							let focused = extract_focused(&parsed);
+							let focus_param = extract_focus_param(&parsed);
 							let transformed = parsed.transform(&validator);
 							let vquery = ValidatedQuery{
 								table: table,
 								query: Some(transformed),
-								focused: focused,
+								focus_param: focus_param,
 							};
 							Ok(vquery)
 						},
@@ -446,7 +536,7 @@ impl TableFilter{
 					let vquery = ValidatedQuery{
 						table: table,
 						query: None,
-						focused: 0
+						focus_param: None
 					};
 					Ok(vquery)
 				}
@@ -458,26 +548,77 @@ impl TableFilter{
 }
 
 
+/// prioritized focused_record than focused
+fn extract_focus_param(iquery: &iq::Query)->Option<FocusParam>{
+	let focused_record = find_in_equation(&iquery.equations, "focused_record");
+	if let Some(focused_record) = focused_record {
+		match focused_record{
+			&iq::Operand::Number(number) => {
+				let primary_blob = format!("{}",number);
+				return Some(FocusParam::PrimaryBlob(primary_blob))
+			},
+				&iq::Operand::Column(ref column) => {
+					// example: focused_record=efc62342-1230af,100001
+					let primary_blob = format!("{}",column);
+					return Some(FocusParam::PrimaryBlob(primary_blob))
+				},
+				&iq::Operand::Boolean(value)=>{
+					let primary_blob = format!("{}", value);
+					return Some(FocusParam::PrimaryBlob(primary_blob))
+				},
+				_ => ()
+		}
+	}
+	let focused = find_in_equation(&iquery.equations, "focused");
+	if let Some(focused) = focused{
+		match focused{
+			&iq::Operand::Number(number) => {
+				let focused = number as usize;
+				return Some(FocusParam::Index(focused));
+			},
+				_ => () 
+		}
+	}
+	None
+}
 
-fn extract_focused(iquery: &iq::Query)->usize{
-	for ref eq in &iquery.equations{
+/// return the right operand of the equation when this colum match
+fn find_in_equation<'a>(equations: &'a Vec<iq::Equation>, left_column: &str)->Option<&'a iq::Operand>{
+	for ref eq in equations{
 		match &eq.left{
 			&iq::Operand::Column(ref column) => {
-				if column == "focused"{
-					match &eq.right{
-						&iq::Operand::Number(number) => {
-							let focused = number as usize;
-							return focused;
-						},
-						_ => () 
-					}
+				if column == left_column{
+					return Some(&eq.right)
 				}
 			},
 			_ => ()
 		}
-
 	}	
-	0
+	None
+}
+
+/// index will be the relative position of the record
+/// record will be transformed into a filter of the primary keys
+/// comma separated values of the primary key value with respect to the
+/// position order of the primary keys in the table
+#[derive(Debug)]
+enum FocusParam{
+	Index(usize),
+	PrimaryBlob(String)
+}
+
+
+fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao)->Vec<DaoState>{
+	let mut dao_states = vec![];
+	for dao in dao_list{
+		if dao == focused_dao{
+			let dao_state = DaoState{focused: true, dao: dao.clone()};
+			dao_states.push(dao_state);
+		}else{
+			dao_states.push(DaoState::from_dao(dao.clone()));
+		}
+	}
+	dao_states
 }
 
 #[derive(Debug)]
@@ -492,3 +633,43 @@ impl ParseError{
 	}
 }
 
+/// when a dao is updated
+#[derive(Debug)]
+struct DaoUpdate{
+	original: Dao,
+	updated: Dao,
+}
+
+impl DaoUpdate{
+		
+	/// get only the minimal update by including only the 
+	/// changed values
+	fn minimize_update(&self)->Dao{
+		let original_map = self.original.as_map();
+		println!("original map: {:#?}", original_map);
+		let keys = original_map.keys();
+		for key in keys{
+			println!("key: {:?}", key);
+		}
+		panic!("not yet!");
+	}
+}
+
+/// the changeset of dao in a table
+/// all the inserted dao will be inserted first
+/// all the updated ones will be updated 2nd
+/// all the deleted ones will be deleted last
+/// deletion may cause referential integrity errors
+#[derive(Debug)]
+struct UpdatableData{
+	table: String,
+	inserted: Vec<Dao>,
+	deleted: Vec<Dao>,
+	updated: Vec<DaoUpdate>
+}
+
+/// the list of changesets for each table
+#[derive(Debug)]
+struct ChangeSet{
+	data: Vec<UpdatableData>,
+}

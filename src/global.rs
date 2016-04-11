@@ -92,19 +92,6 @@ impl GlobalPools{
 			self.cache_map.insert(db_url.to_owned(), cache);
 		}
     }
-/*
-	pub fn get_connection(&mut self, db_url: &str)->Result<Platform, DbError>{
-		if self.has_cache(db_url){
-			let platform = self.get_cache(db_url).unwrap().get_connection();
-			Ok(platform)
-		}else{
-			let cache = Cache::new(db_url);
-			self.cache_map.insert(db_url.to_owned(), cache);
-			//try again
-			self.get_connection(db_url)
-		}
-	}
-    */
 
 
 	pub fn cache_tables(&mut self, db_url: &str, tables: Vec<Table>){

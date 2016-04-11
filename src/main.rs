@@ -55,6 +55,7 @@ fn main() {
     router.get("/window/:table", window_service::window_http::http_get_window);
     router.get("/data/:table",data_service::data_http::http_data_query);
     router.get("/app/:main_table",app_service::app_http::http_complex_query);
+    router.post("/app/:main_table",app_service::app_http::http_update_data);
     router.get("/lookup/:table", lookup_service::lookup_http::http_get_lookup_data);
 
     let mut middleware = Chain::new(router);
