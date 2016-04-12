@@ -1,15 +1,3 @@
-use iron::status;
-use std::str::FromStr;
-use std::env;
-use iron::prelude::*;
-use persistent::{Write, State};
-use std::net::SocketAddrV4;
-use std::net::Ipv4Addr;
-use global::GlobalPools;
-use iron::method::Method::*;
-use iron::AfterMiddleware;
-use unicase::UniCase;
-use iron::headers;
 use inquerest;
 use global;
 use global::Context;
@@ -32,10 +20,15 @@ use rustorm::dao::Value;
 use data_service::data_api;
 use uuid::Uuid;
 use rustc_serialize::json::Json;
+use rustorm::database::DbError;
+use error::ParseError;
+use error::ServiceError;
+use error::ParamError;
+use window_service::window::Window;
 
 
 
-pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<RestData, ParseError>{
+pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<RestData, ServiceError>{
 	let validator = DbElementValidator::from_context(context);
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
 	let main_validated = main_table_filter.transform(context, &validator);
@@ -50,11 +43,43 @@ pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option
 						Err(e) => ()
 				}
 			}
-			let rest_data:Result<RestData, ParseError> = retrieve_main_data(context, &main_validated, &rest_validated);
-			rest_data
+			let rest_data:Result<RestData, ServiceError> = retrieve_main_data(context, &main_validated, &rest_validated);
+            rest_data
 		},
-			Err(e) => Err(e) 
+		Err(e) => Err(ServiceError::from(e)) 
 	}
+}
+
+
+fn update_data(context: &mut Context, updatable_data: &String)->Result<(),ServiceError>{
+    if updatable_data.trim().is_empty(){
+        return Err(ServiceError::from(ParamError::new("empty updatable data")));
+    }else{
+        let json = Json::from_str(updatable_data);
+        match json{
+            Ok(json) => {
+                let changeset: Result<ChangeSet, ParseError> = ChangeSet::from_json(&json);
+                match changeset{
+                    Ok(changeset) => {
+                        apply_data_changeset(context, &changeset);
+                        return Ok(()); 
+                    },
+                    Err(e) => {
+                        return Err(ServiceError::from(ParseError::from(e)));
+                    }
+                }
+            },
+            Err(e) => {
+                return Err(ServiceError::from(ParseError::from(e)));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn apply_data_changeset(context: &mut Context, changeset: &ChangeSet)->Result<(), DbError>{
+    println!("applying changeset");
+    Ok(()) 
 }
 
 fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableFilter, Vec<TableFilter>){
@@ -112,11 +137,11 @@ pub struct RestData{
 
 
 /// retrieve the window data for all tabs involved in this window
-fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<RestData, ParseError>{
+fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<RestData, ServiceError>{
 	let main_table:Table = main_query.table.clone();
 	let main_window = match window_api::retrieve_window(context, &main_table.name){
 		Ok(main_window) => main_window,
-			Err(e) => {return Err(ParseError::new("unable to obtain main window"));}
+			Err(e) => {return Err(ServiceError::from(e));}
 	};
 	let mut table_dao = vec![];
 	let mut mquery: Query = match main_query.query{
@@ -132,18 +157,25 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 	let main_dao_result = {
 		let db = match context.db(){
 			Ok(db) => db,
-			Err(e) => {return Err(ParseError::new("unable to obtain db connection"));}
+			Err(e) => {return Err(ServiceError::from(e));}
 		};
 		match mquery.retrieve(db){
 			Ok(main_dao_result) => main_dao_result,
-				Err(e) => {return Err(ParseError::new("unable to retrieve main dao results"));}
+				Err(e) => {return Err(ServiceError::from(e));}
 		}
 	};
+
+    println!("main dao result: {:#?}", main_dao_result);
 
 	// all the other table dao will not be retrieved when there is no focused record on the main tab
 
 	if let Some(main_tab) = main_window.tab{
-		if let Some(main_focused_dao) = extract_focused_dao(&main_table, &main_dao_result.dao, &main_query.focus_param){
+        let main_focused_dao = extract_focused_dao(&main_table, &main_dao_result.dao, &main_query.focus_param);
+        if main_focused_dao.is_none(){// if nothing is focused, just return the table dao even without marked focused
+            let main_table_dao = TableDao::from_dao_result(&main_dao_result, &main_table.complete_name());
+			table_dao.push(main_table_dao);
+        }
+        if let Some(main_focused_dao) = extract_focused_dao(&main_table, &main_dao_result.dao, &main_query.focus_param){
 			let main_dao_state = mark_focused_record(&main_dao_result.dao, &main_focused_dao);
 			let main_table_dao = TableDao{
 									table: main_table.complete_name(), 
@@ -159,7 +191,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 				for ext_tab in ext_tabs{
 					let ext_table = match window_api::get_matching_table(context, &ext_tab.table){
 						Some(ext_table) => ext_table,
-							None => {return Err(ParseError::new("Unable to get table for extension"));}
+							None => {return Err(ServiceError::new("Unable to get table for extension"));}
 					};
 					let mut ext_query = build_query(&main_table, &ext_table, &main_with_focused_filter, rest_vquery);
 					let debug = ext_query.debug_build(context.db().unwrap());
@@ -169,7 +201,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 							table_dao.push(TableDao::from_dao_result(&dao_result, &ext_table.complete_name()));
 						},
 							Err(e) => {
-								return Err(ParseError::new("unable to retrove data in main table"));
+								return Err(ServiceError::from(e));
 							}
 					}
 				}
@@ -178,7 +210,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 				for has_many in has_many_tabs{
 					let has_table = match window_api::get_matching_table(context, &has_many.table){
 						Some(has_table) => has_table,
-							None => {return Err(ParseError::new("Unable to get table for extension"));}
+							None => {return Err(ServiceError::new("Unable to get table for has many"));}
 					};
 					let mut has_query = build_query(&main_table, &has_table, &main_with_focused_filter, rest_vquery);
 					let debug = has_query.debug_build(context.db().unwrap());
@@ -188,7 +220,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 							table_dao.push(TableDao::from_dao_result(&dao_result, &has_table.complete_name()));
 						}
 						Err(e) => {
-							return Err(ParseError::new("unable to retrieve data in has many table"));
+							return Err(ServiceError::from(e));
 						}
 					}
 				}
@@ -198,13 +230,13 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 					// will use inner join to linker table, and inner join to the indirect
 					let indirect_table = match window_api::get_matching_table(context, &indirect.table){
 						Some(indirect_table) => indirect_table,
-							None => {return Err(ParseError::new("Unable to get table for extension"));}
+							None => {return Err(ServiceError::new("Unable to get table for extension"));}
 					};
 					assert!(indirect.linker_table.is_some(), format!("indirect tab {} must have a linker table specified", indirect.table));
 					let linker_table_name = &indirect.linker_table.as_ref().unwrap();
 					let linker_table =match window_api::get_matching_table(context, &linker_table_name){
 						Some(linker_table) => linker_table,
-							None => { return Err(ParseError::new("linker table can not be found")); }
+							None => { return Err(ServiceError::new("linker table can not be found")); }
 					};
 					let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
 
@@ -215,7 +247,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 							table_dao.push(TableDao::from_dao_result(&dao_result, &indirect_table.complete_name()));
 						}
 						Err(e) => {
-							return Err(ParseError::new("Unable to retrieve data from indirect table"));
+							return Err(ServiceError::from(e));
 						}
 					}
 
@@ -225,7 +257,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		let rest_data = RestData{ table_dao: table_dao};
 		Ok(rest_data)
 	}else{
-		Err(ParseError::new("no main tab"))
+		Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
 	}
 }
 
@@ -255,7 +287,9 @@ fn build_query(main_table: &Table, ext_table: &Table, main_filter: &Vec<Filter>,
 	ext_query
 }
 
-fn build_query_with_linker(main_table: &Table, indirect_table: &Table, main_filter: &Vec<Filter>, linker_table: &Table, rest_vquery: &Vec<ValidatedQuery>)->Query{
+fn build_query_with_linker(main_table: &Table, indirect_table: &Table, 
+        main_filter: &Vec<Filter>, linker_table: &Table, rest_vquery: &Vec<ValidatedQuery>
+        )->Query{
 	let mut query = Query::select();
 	query.enumerate_from_table(&indirect_table.to_table_name());
 	query.from(main_table);
@@ -624,17 +658,6 @@ fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao)->Vec<DaoState>{
 	dao_states
 }
 
-#[derive(Debug)]
-pub struct ParseError{
-	desc: String,
-}
-
-impl ParseError{
-	
-	pub fn new(m: &str)->Self{
-		ParseError{desc: m.to_owned()}
-	}
-}
 
 /// when a dao is updated
 #[derive(Debug)]

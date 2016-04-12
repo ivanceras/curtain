@@ -1,19 +1,10 @@
-use iron::status;
-use router::Router;
-use iron::prelude::*;
-use iron::headers::*;
-use iron::status::Status;
-use rustc_serialize::json::{self};
-use std::sync::{Arc,RwLock};
-
-use rustorm::database::DatabaseDev;
 use rustorm::query::TableName;
 use window_service::window::{self, Window};
 use rustorm::table::Table;
-use global::GlobalPools;
-use global;
 use std::collections::HashSet;
 use global::Context;
+use error::ParamError;
+use rustorm::database::DatabaseDev;
 
 
 /// try retrieving tables from cache, if none, then from db and cache it
@@ -107,7 +98,7 @@ pub fn all_schema_names(context: &mut Context)->HashSet<String>{
 
 
 /// retrive the window definition of a table
-pub fn retrieve_window(context :&mut Context, arg_table_name: &str)->Result<Window, String>{
+pub fn retrieve_window(context :&mut Context, arg_table_name: &str)->Result<Window, ParamError>{
     info!("getting window: {}", arg_table_name);
     let windows = get_windows(context);
     let table_name  = TableName::from_str(arg_table_name);
@@ -126,7 +117,7 @@ pub fn retrieve_window(context :&mut Context, arg_table_name: &str)->Result<Wind
             }
         }
     }
-    Err(format!("No window for {}",arg_table_name))
+    Err(ParamError::new(&format!("No window for {}",arg_table_name)))
 }
 
 
@@ -137,17 +128,6 @@ pub fn list_window(context: &mut Context)->Result<Vec<Window>, String>{
     Ok(windows)
 }
 
-pub fn get_window(context: &mut Context, table: &str) -> IronResult<Response> {
-	match retrieve_window(context, table){
-		Ok(window) => {
-			let encoded = json::encode(&window).unwrap();
-			return Ok(Response::with((Status::Ok, encoded)));
-		},
-		Err(e) => {
-			return Ok(Response::with((Status::BadRequest, format!("{}",e))));
-		}
-	}
-}
 
 
 ///

@@ -1,16 +1,9 @@
 use iron::status;
 use router::Router;
-use std::str::FromStr;
-use std::env;
 use iron::prelude::*;
-use persistent::{Write, State};
-use std::net::SocketAddrV4;
-use std::net::Ipv4Addr;
-use global::GlobalPools;
-use iron::method::Method::*;
-use iron::AfterMiddleware;
-use unicase::UniCase;
-use iron::headers;
+use iron::headers::*;
+use iron::status::Status;
+
 use inquerest;
 use global;
 use global::Context;
@@ -28,13 +21,12 @@ use rustorm::query::{TableName,ToTableName};
 use rustorm::query::source::ToSourceField;
 use rustorm::query::column_name::{ToColumnName,ColumnName};
 use rustc_serialize::json;
-use app_service::app_api::ParseError;
 use app_service::app_api::TableFilter;
 use app_service;
-use std::io::Read;
 use rustc_serialize::json::{Json};
 use app_service::app_api::ChangeSet;
-
+use error::ParseError;
+use std::io::Read;
 
 
 /// example: http://localhost:8181/app/bazaar.product?price=gt.100.012e-10&order_by=product.seq_no&limit=10&focused=3/category?category.name=eq.accessories&order_by=name.asc.nullsfirst&focused=0
@@ -60,11 +52,7 @@ pub fn http_update_data(req: &mut Request)->IronResult<Response>{
 	match main_table{
 		Some( main_table ) => {
 			println!("body: {}",body);
-			let json = Json::from_str(&body).unwrap();
-			let changeset:Result<ChangeSet, ParseError> = ChangeSet::from_json(&json);
-			let json_pretty = format!("{}",json::as_pretty_json(&json));
-			println!("json: {}",json_pretty);
-			Ok(Response::with((status::Ok, json_pretty)))
+			Ok(Response::with((status::Ok, "")))
 		}
 		None => {
 			Ok(Response::with((status::BadRequest, "No main table specified")))
