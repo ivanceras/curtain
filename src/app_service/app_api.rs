@@ -51,7 +51,7 @@ pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option
 }
 
 
-fn update_data(context: &mut Context, updatable_data: &String)->Result<(),ServiceError>{
+pub fn update_data(context: &mut Context, updatable_data: &str)->Result<(),ServiceError>{
     if updatable_data.trim().is_empty(){
         return Err(ServiceError::from(ParamError::new("empty updatable data")));
     }else{
@@ -355,16 +355,18 @@ fn extract_focused_dao(table:&Table, dao_list: &Vec<Dao>, focus_param: &Option<F
 fn match_needle(dao:&Dao, needle: &BTreeMap<String, Value>)->bool{
 	let mut matches = 0;
 	for key in needle.keys(){
-		let dao_value = dao.get_value(key);
+		let dao_value = dao.get(key);
 		let needle_value = needle.get(key);
 		if let Some(needle_value) = needle_value{
-			if needle_value == &dao_value{
-				println!("we have a match here");
-				matches += 1;
-			}else{
-				println!("1 key didnt match");
-				return false;
-			}
+            if let Some(dao_value) = dao_value{
+                if needle_value == dao_value{
+                    println!("we have a match here");
+                    matches += 1;
+                }else{
+                    println!("1 key didnt match");
+                    return false;
+                }
+            }
 		}
 	}
 	needle.keys().len() == matches
@@ -474,10 +476,12 @@ impl QuerySearch for Vec<ValidatedQuery>{
 fn create_main_query_join_filter_from_focused_dao(table: &Table, focused_dao: &Dao)->Vec<Filter>{
 	let mut filters = vec![];
 	for pri in table.primary_columns(){
-		let pvalue = focused_dao.get_value(&pri.name);
-		let column = pri.complete_name();
-		let filter = Filter::new(&column, Equality::EQ, &pvalue);
-		filters.push(filter)
+		let pvalue = focused_dao.get(&pri.name);
+        if let Some(pvalue) = pvalue{
+            let column = pri.complete_name();
+            let filter = Filter::new(&column, Equality::EQ, &pvalue.to_owned());
+            filters.push(filter)
+        }
 	}
 	filters
 }
@@ -673,18 +677,18 @@ impl DaoUpdate{
 	/// changed values
 	pub fn minimize_update(&self)->Dao{
 		let mut changeset = Dao::new();
-		let original_map = self.original.as_map();
-		println!("original map: {:#?}", original_map);
-		let keys = original_map.keys();
+		let keys = self.original.keys();
 		for key in keys{
 			println!("key: {:?}", key);
-			let updated_value = self.updated.get_value(key);
-			let orig_value = self.original.get_value(key);
-			if updated_value == orig_value{
-				println!("no change for {}", key);
-			}else{
-				changeset.set_value(key, updated_value);
-			}
+			let updated_value = self.updated.get(key);
+			let orig_value = self.original.get(key);
+            if updated_value == orig_value{
+                println!("no change for {}", key);
+            }else{
+                if let Some(updated_value) = updated_value{
+                    changeset.insert(key.to_owned(), updated_value.to_owned());
+                }
+            }
 		}
 		changeset
 	}
@@ -766,6 +770,7 @@ pub struct UpdatableData{
 	pub updated: Vec<DaoUpdate>
 }
 
+
 /// the list of changesets for each table
 #[derive(Debug)]
 #[derive(RustcEncodable)]
@@ -776,6 +781,12 @@ pub struct ChangeSet{
 impl ChangeSet{
 	
 	pub fn from_json(json: &Json)->Result<Self, ParseError>{
-		panic!("soon!");
+        println!("from json: {:#?}", json);
+        let data = json.find("data");
+        println!("data: {:?}", data);
+        let changeset = ChangeSet{
+            data: vec![],
+        };
+        Ok(changeset)
 	}
 }

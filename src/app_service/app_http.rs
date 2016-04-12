@@ -51,8 +51,8 @@ pub fn http_update_data(req: &mut Request)->IronResult<Response>{
 
 	match main_table{
 		Some( main_table ) => {
-			println!("body: {}",body);
-			Ok(Response::with((status::Ok, "")))
+            let json = app_service::app_json::json_update_data(&mut context, &body);
+			Ok(Response::with((status::Ok, json)))
 		}
 		None => {
 			Ok(Response::with((status::BadRequest, "No main table specified")))

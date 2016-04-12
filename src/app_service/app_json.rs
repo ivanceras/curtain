@@ -14,3 +14,16 @@ pub fn json_complex_query(context: &mut Context, main_table: &str, url_query: &O
 	}
 	
 }
+
+
+pub fn json_update_data(context: &mut Context, body: &str)->String{
+	match app_service::app_api::update_data(context, body){
+		Ok(()) => {
+		    format!("OK")	
+		}
+		Err(e) => {
+			format!("{:?}",e)
+		}
+	}
+	
+}
