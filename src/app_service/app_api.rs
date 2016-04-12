@@ -666,6 +666,7 @@ fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao)->Vec<DaoState>{
 /// when a dao is updated
 #[derive(Debug)]
 #[derive(RustcEncodable)]
+#[derive(RustcDecodable)]
 pub struct DaoUpdate{
 	pub original: Dao,
 	pub updated: Dao,
@@ -697,11 +698,11 @@ impl DaoUpdate{
 #[test]
 fn test_dao_minimize_update(){
 	let mut dao1 = Dao::new();
-	dao1.set_value("key1",Value::String("value1".to_owned()));
-	dao1.set_value("key2",Value::String("value2".to_owned()));
+	dao1.insert("key1".to_owned(),Value::String("value1".to_owned()));
+	dao1.insert("key2".to_owned(),Value::String("value2".to_owned()));
 
 	let mut dao2 = dao1.clone();
-	dao2.set_value("key2",Value::String("I changed this".to_owned()));
+	dao2.insert("key2".to_owned(),Value::String("I changed this".to_owned()));
 
 	let update = DaoUpdate{
 		original: dao1.clone(),
@@ -710,7 +711,7 @@ fn test_dao_minimize_update(){
 	let min = update.minimize_update();
 	println!("min: {:#?}",min);
 	let mut expected = Dao::new();
-	expected.set_value("key2", Value::String("I changed this".to_owned()));
+	expected.insert("key2".to_owned(), Value::String("I changed this".to_owned()));
 
 	assert_eq!(expected, min);
 }
@@ -726,6 +727,7 @@ fn test_dao_minimize_update(){
 /// for the succedding insert operation
 #[derive(Debug)]
 #[derive(RustcEncodable)]
+#[derive(RustcDecodable)]
 pub struct DaoInsert{
 	dao: Dao,
 	pub referred_record_id: Option<Uuid>, // the main record_id to refer to
@@ -763,6 +765,7 @@ impl DaoInsert{
 /// rename to BatchData?
 #[derive(Debug)]
 #[derive(RustcEncodable)]
+#[derive(RustcDecodable)]
 pub struct UpdatableData{
 	pub table: String,
 	pub inserted: Vec<DaoInsert>,
@@ -774,6 +777,7 @@ pub struct UpdatableData{
 /// the list of changesets for each table
 #[derive(Debug)]
 #[derive(RustcEncodable)]
+#[derive(RustcDecodable)]
 pub struct ChangeSet{
 	pub data: Vec<UpdatableData>,
 }
