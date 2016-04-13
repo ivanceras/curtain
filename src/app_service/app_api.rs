@@ -25,6 +25,7 @@ use error::ParseError;
 use error::ServiceError;
 use error::ParamError;
 use window_service::window::Window;
+use rustc_serialize::json::DecoderError;
 
 
 
@@ -51,36 +52,69 @@ pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option
 }
 
 
-pub fn update_data(context: &mut Context, updatable_data: &str)->Result<(),ServiceError>{
-    if updatable_data.trim().is_empty(){
-        return Err(ServiceError::from(ParamError::new("empty updatable data")));
-    }else{
-        let json = Json::from_str(updatable_data);
-        match json{
-            Ok(json) => {
-                let changeset: Result<ChangeSet, ParseError> = ChangeSet::from_json(&json);
-                match changeset{
-                    Ok(changeset) => {
-                        apply_data_changeset(context, &changeset);
-                        return Ok(()); 
-                    },
-                    Err(e) => {
-                        return Err(ServiceError::from(ParseError::from(e)));
-                    }
-                }
-            },
-            Err(e) => {
-                return Err(ServiceError::from(ParseError::from(e)));
-            }
-        }
-    }
-    Ok(())
+pub fn update_data(context: &mut Context, main_table: &str, updatable_data: &str)->Result<(),ServiceError>{
+	if updatable_data.trim().is_empty(){
+		return Err(ServiceError::from(ParamError::new("empty updatable data")));
+	}else{
+		println!("updatable_data: {}", updatable_data);
+		let changeset: Result<Vec<ChangeSet>, DecoderError> = json::decode(updatable_data);
+		match changeset{
+			Ok(changeset) => {
+				let window = window_api::retrieve_window(context, main_table);
+				match window{
+					Ok(window) => {
+						apply_data_changeset(context, &window, &changeset);
+						return Ok(()); 
+					},
+						Err(e) => {return Err(ServiceError::from(e));}
+				}
+			},
+				Err(e) => {
+					return Err(ServiceError::from(ParseError::new(&format!("{}",e))));
+				}
+		}
+	}
+	Ok(())
 }
 
-fn apply_data_changeset(context: &mut Context, changeset: &ChangeSet)->Result<(), DbError>{
+fn apply_data_changeset(context: &mut Context, window: &Window, changesets: &Vec<ChangeSet>) -> Result<(), DbError>{
     println!("applying changeset");
+	for changeset in changesets{
+		apply_dao_delete(context, &changeset.deleted);
+		apply_dao_update(context, &changeset.updated);
+		apply_dao_insert(context, &changeset.inserted);
+	}
     Ok(()) 
 }
+
+fn apply_dao_delete(context: &mut Context, deletes: &Vec<Dao>) -> Result<(), DbError>{
+	for delete in deletes{
+		println!("--->");
+		println!("deleted : {:?}", delete);
+		println!("--->");
+	}
+	Ok(())
+}
+
+fn apply_dao_update(context: &mut Context, updates: &Vec<DaoUpdate>) -> Result<(), DbError>{
+	for update in updates{
+		let min = update.minimize_update();
+		println!("update original: {:?}", update.original);
+		println!("--->");
+		println!("min : {:?}", min);
+		println!("--->");
+	}	
+	Ok(())
+}
+fn apply_dao_insert(context: &mut Context, inserts: &Vec<DaoInsert>) -> Result<(), DbError>{
+	for insert in inserts{
+		println!("--->");
+		println!("for insert: {:?}", insert);
+		println!("--->");
+	}
+	Ok(())
+}
+
 
 fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableFilter, Vec<TableFilter>){
     let mut main_table_filter = TableFilter{
@@ -766,7 +800,7 @@ impl DaoInsert{
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
-pub struct UpdatableData{
+pub struct ChangeSet{
 	pub table: String,
 	pub inserted: Vec<DaoInsert>,
 	pub deleted: Vec<Dao>,// will use the primary key value if avaialble, else the uniques, else all the matching record
@@ -774,23 +808,3 @@ pub struct UpdatableData{
 }
 
 
-/// the list of changesets for each table
-#[derive(Debug)]
-#[derive(RustcEncodable)]
-#[derive(RustcDecodable)]
-pub struct ChangeSet{
-	pub data: Vec<UpdatableData>,
-}
-
-impl ChangeSet{
-	
-	pub fn from_json(json: &Json)->Result<Self, ParseError>{
-        println!("from json: {:#?}", json);
-        let data = json.find("data");
-        println!("data: {:?}", data);
-        let changeset = ChangeSet{
-            data: vec![],
-        };
-        Ok(changeset)
-	}
-}

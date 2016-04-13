@@ -24,7 +24,6 @@ use rustc_serialize::json;
 use app_service::app_api::TableFilter;
 use app_service;
 use rustc_serialize::json::{Json};
-use app_service::app_api::ChangeSet;
 use error::ParseError;
 use std::io::Read;
 
@@ -51,7 +50,7 @@ pub fn http_update_data(req: &mut Request)->IronResult<Response>{
 
 	match main_table{
 		Some( main_table ) => {
-            let json = app_service::app_json::json_update_data(&mut context, &body);
+            let json = app_service::app_json::json_update_data(&mut context, &main_table, &body);
 			Ok(Response::with((status::Ok, json)))
 		}
 		None => {

@@ -114,9 +114,6 @@ pub fn correct_value_type(orig: &Value, to_type: &Type)->Value{
 	if orig.get_type() == *to_type {
 		return orig.clone();
 	}
-	if orig.get_type() == Type::None{
-		return Value::None(to_type.clone())
-	}
 	match *to_type{
 		Type::Uuid => {
 			match *orig{
@@ -144,7 +141,10 @@ pub fn correct_value_type(orig: &Value, to_type: &Type)->Value{
 		},
 		Type::Json => {
 			match *orig{
-				Value::String(ref s) => Value::Json(Json::from_str(s).unwrap()),
+				Value::String(ref s) => {
+					let json = Json::from_str(s).unwrap();
+					Value::Json(json)
+				},
 				_ => panic!("Unable to convert from other type {:?} to {:?}", orig, to_type)
 			}
 		},

@@ -16,8 +16,8 @@ pub fn json_complex_query(context: &mut Context, main_table: &str, url_query: &O
 }
 
 
-pub fn json_update_data(context: &mut Context, body: &str)->String{
-	match app_service::app_api::update_data(context, body){
+pub fn json_update_data(context: &mut Context, main_table: &str, body: &str)->String{
+	match app_service::app_api::update_data(context, main_table, body){
 		Ok(()) => {
 		    format!("OK")	
 		}
