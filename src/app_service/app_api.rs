@@ -25,6 +25,7 @@ use error::ParseError;
 use error::ServiceError;
 use error::ParamError;
 use window_service::window::Window;
+use window_service::window::Tab;
 use rustc_serialize::json::DecoderError;
 
 
@@ -63,7 +64,7 @@ pub fn update_data(context: &mut Context, main_table: &str, updatable_data: &str
 				let window = window_api::retrieve_window(context, main_table);
 				match window{
 					Ok(window) => {
-						apply_data_changeset(context, &window, &changeset);
+						apply_data_changeset(context, &window, &changeset)?;
 						return Ok(()); 
 					},
 						Err(e) => {return Err(ServiceError::from(e));}
@@ -77,43 +78,301 @@ pub fn update_data(context: &mut Context, main_table: &str, updatable_data: &str
 	Ok(())
 }
 
+#[derive(Debug)]
+#[derive(Clone)]
+struct WindowTabTables{
+    main_table: (Tab, Table),
+    ext_tables: Vec<(Tab, Table)>,
+    has_many_tables: Vec<(Tab, Table)>,
+    has_many_indirect: Vec<(Tab, Table,Table)>,// the last table arg is the linker table
+}
+
+fn extract_window_tables(context: &mut Context, window: &Window) -> Result<WindowTabTables, DbError> {
+    if let Some(ref main_tab) = window.tab{
+        let main_table = match window_api::get_matching_table(context, &main_tab.table){
+            Some(main_table) => main_table,
+            None => { return Err(DbError::new("no main table found"));}
+        };
+        let mut ext_tables = vec![];
+        let mut has_many_tables = vec![];
+        let mut indirect_tables = vec![];
+        if let Some(ref ext_tabs) = main_tab.ext_tabs{
+            for ext_tab in ext_tabs{
+                let ext_table = window_api::get_matching_table(context, &ext_tab.table);
+                ext_table.map(|table| ext_tables.push( (ext_tab.clone(), table) ));
+            } 
+        }
+        if let Some(ref has_many_tabs) = main_tab.has_many_tabs{
+            for has_many_tab in has_many_tabs{
+                let has_many_table = window_api::get_matching_table(context, &has_many_tab.table);
+                has_many_table.map(|table| has_many_tables.push( (has_many_tab.clone(), table) ));
+            }
+        }
+        if let Some(ref has_many_indirect) = main_tab.has_many_indirect_tabs{
+            for indirect in has_many_indirect{
+                let indirect_table = window_api::get_matching_table(context, &indirect.table);
+                assert!(indirect.linker_table.is_some(), "There should be a linker here");
+                let linker_table_name = indirect.linker_table.as_ref().unwrap();
+                let linker = match window_api::get_matching_table(context, &linker_table_name){
+                    Some(linker) => linker,
+                    None => return Err(DbError::new("linker table not found"))
+                };
+                indirect_table.map( |table| indirect_tables.push( (indirect.clone(), table, linker) ));
+            }
+        }
+        let window_tables = WindowTabTables{
+                main_table: (main_tab.clone(), main_table),
+                ext_tables: ext_tables,
+                has_many_tables: has_many_tables,
+                has_many_indirect: indirect_tables,
+        };
+        Ok(window_tables)
+    }else{
+        Err(DbError::new("No main tab"))
+    }
+}
+
+/// for each table on this window, get their corresponding changeset and apply each changeset accordingly
 fn apply_data_changeset(context: &mut Context, window: &Window, changesets: &Vec<ChangeSet>) -> Result<(), DbError>{
-    println!("applying changeset");
-	for changeset in changesets{
-		apply_dao_delete(context, &changeset.deleted);
-		apply_dao_update(context, &changeset.updated);
-		apply_dao_insert(context, &changeset.inserted);
-	}
-    Ok(()) 
+	println!("applying changeset");
+	let window_tables = match extract_window_tables(context, window){
+		Ok(window_tables) => {
+			let updated_inserts = apply_changeset_to_main_table(context, &window_tables.main_table, changesets);
+			match updated_inserts{
+				Ok(updated_inserts) => {
+
+				},
+				Err(e) => {
+					println!("There is something wrong applying changesets to main table: {}", e);
+				}
+			}
+			apply_changeset_to_direct_tables(context, &window_tables.main_table, &window_tables.ext_tables, changesets);
+			apply_changeset_to_indirect_tables(context, &window_tables.main_table, &window_tables.has_many_indirect, changesets);
+		},
+			Err(e) => {
+				return Err(DbError::new("no window tables"));
+			}
+	};
+	Ok(()) 
 }
 
-fn apply_dao_delete(context: &mut Context, deletes: &Vec<Dao>) -> Result<(), DbError>{
-	for delete in deletes{
-		println!("--->");
-		println!("deleted : {:?}", delete);
-		println!("--->");
-	}
-	Ok(())
+/// only owned direct table will be updated on this place since 
+/// not owned direct table may have also been referenced somewhere at different context
+fn apply_changeset_to_direct_tables(context: &mut Context, main_table: &(Tab, Table), 
+        direct_tables: &Vec<(Tab, Table)>, changesets: &Vec<ChangeSet> ) -> Result<(), DbError> {
+    println!("applying changeset to direct tables...");
+    for &(ref direct_tab, ref direct) in direct_tables{
+        let changeset = changesets.find(&direct.complete_name());
+        if let Some(changeset) = changeset{
+            println!("direct changeset: {:#?}", changeset);
+        }else{
+            println!("------------>>>> No direct changeset");
+        }
+    }
+    Ok(())
 }
 
-fn apply_dao_update(context: &mut Context, updates: &Vec<DaoUpdate>) -> Result<(), DbError>{
-	for update in updates{
-		let min = update.minimize_update();
-		println!("update original: {:?}", update.original);
-		println!("--->");
-		println!("min : {:?}", min);
-		println!("--->");
-	}	
-	Ok(())
+
+/// delete only upto the linker
+fn apply_changeset_to_indirect_tables(context: &mut Context, main_tab_table: &(Tab, Table),
+    indirect_tables: &Vec<(Tab, Table, Table)>, changesets: &Vec<ChangeSet> ) -> Result<(), DbError> {
+	let &(ref main_tab, ref main_table) = main_tab_table;
+	println!("---->>>>>>>> INDIRECT TABLES <<<<<<<--------");
+    println!("applying changeset to indirect tables..");    
+    for &(ref indirect_tab, ref indirect,ref linker) in indirect_tables{
+        let changeset = changesets.find(&indirect.complete_name());
+        if let Some(changeset) = changeset{
+            println!("indirect changeset: {:#?}", changeset);
+			for ref insert in &changeset.inserted{
+				//whatever is the primary key of this insert dao, use it in the record in the linker table
+				// this needs access to the parent record
+				insert_dao_to_linker(context, &main_table, indirect, linker, insert);
+			}
+			for ref delete in &changeset.deleted{
+			
+			}
+			for ref update in &changeset.updated{
+				
+			}
+        }else{
+            println!("----->>>No indirect changeset");
+        }
+    }
+    Ok(())
 }
-fn apply_dao_insert(context: &mut Context, inserts: &Vec<DaoInsert>) -> Result<(), DbError>{
-	for insert in inserts{
-		println!("--->");
-		println!("for insert: {:?}", insert);
-		println!("--->");
+
+fn insert_dao_to_linker(context: &mut Context, main_table: &Table, table: &Table, linker: &Table, insert: &DaoInsert){
+	
+}
+
+
+fn apply_changeset_to_main_table(context: &mut Context, main_tab_table: &(Tab, Table), 
+        changesets: &Vec<ChangeSet>) -> Result< Vec<DaoInsert> , DbError> {
+    println!("applying changeset to main table");
+    let &(ref main_tab, ref main_table) = main_tab_table;
+    let changeset = changesets.find(&main_table.complete_name());
+    let mut updated_inserts:Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
+    if let Some(changeset) = changeset{
+        println!("main changeset: {:?}", changeset);
+        for ref insert in &changeset.inserted{
+            println!("inserts: {:#?}", insert);
+            let result: Dao = insert_dao(context, &main_tab_table, &insert.dao)?;
+            let updated_insert = DaoInsert::update_from_inserted_dao(&insert, &result);
+            updated_inserts.push(updated_insert);
+        }
+        for ref delete in &changeset.deleted{
+            println!("delete: {:#?}", delete);
+            // determine if the table properties which decides
+            // whether to delete its referring record
+            // when this dao is referred, and the referring table is an extension table
+            // delete the record in the extension table first, then this.
+			// delete the extension first
+			
+			// TODO: the main da, primary keys may not be the same as the name in the refering tables
+			// will have to recreate the filter for each referring tables
+			delete_records_in_extension_tables(context, main_table, delete);
+			delete_records_in_direct_tables(context, main_table, delete);
+			delete_records_in_linker_tables(context, main_table, delete);
+
+            let result = delete_dao(context, main_tab_table, delete);
+            match result{
+                Ok(result) => println!("got: {:?}", result),
+                Err(e) => println!("delete dao got: {}", e),
+            }
+        }
+        for ref update in &changeset.updated{
+            println!("update: {:#?}", update); 
+            update_dao(context, &main_tab_table, update)?;
+        }
+    }
+    println!("updated inserts: {:#?}", updated_inserts);
+    Ok( updated_inserts )
+}
+
+fn delete_records_in_extension_tables(context: &mut Context, main_table: &Table, dao: &Dao){
+	let all_tables = window_api::get_tables(context);
+	let extension_tables = main_table.extension_tables(&all_tables);
+	for ext_table in extension_tables{
+		let filter = build_translated_filter(main_table, dao, &ext_table);
+		println!("ext table: {}", ext_table.complete_name());
+		delete_dao_with_filter(context, ext_table, &filter);	
 	}
-	Ok(())
 }
+
+/// create a filter for referring table `table` using the record `main_dao` which is
+/// a record in context from `main_table`
+/// Note: `main_dao` column names is in context with `main_table`
+/// so the equivalent column name of `table` which foreign refers to `main_table` must be used
+/// 
+fn build_translated_filter(main_table: &Table, main_dao: &Dao, table: &Table) -> Vec<Filter> {
+	let mut filters = vec![];
+	let foreign_column = table.get_foreign_columns_to_table(main_table);
+	for fc in foreign_column{
+		println!("fc: {} foreign to {:?}", fc.complete_name(), fc.foreign);
+		if let Some(ref foreign) = fc.foreign{
+			let main_pk = &foreign.column;
+			let main_value = main_dao.get(main_pk);// take the value using the pk name
+			if let Some(main_value) = main_value{
+				let filter = Filter::new(&fc.name, Equality::EQ, main_value);//but save the value using the local column name
+				filters.push(filter);
+			}
+		}
+	}
+	filters
+}
+
+
+/// delete only when the direct table is owned
+fn delete_records_in_direct_tables(context: &mut Context, main_table: &Table, dao: &Dao){
+	let all_tables = window_api::get_tables(context);
+	let direct_tables = main_table.direct_tables(&all_tables);
+	for direct in direct_tables{
+		let filter = build_translated_filter(main_table, dao, &direct);
+		println!("direct table: {}", direct.complete_name());
+		delete_dao_with_filter(context, direct, &filter);
+	}
+}
+
+/// delete only up to the linker table, since the actual indirect table may also be used in other contexts
+fn delete_records_in_linker_tables(context: &mut Context, main_table: &Table, dao: &Dao){
+	let all_tables = window_api::get_tables(context);
+	let indirect_tables = main_table.indirect_tables(&all_tables);
+	for (indirect, linker) in indirect_tables{
+		let filter = build_translated_filter(main_table, dao, &linker);
+		println!("indirect: {} linker: {}", indirect.complete_name(), linker.complete_name());
+		delete_dao_with_filter(context, linker, &filter);
+	}
+}
+
+fn update_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &DaoUpdate) -> Result<Option<Dao>, DbError> {
+    let &(ref tab, ref table) = tab_table;
+    let filters = create_filter_from_dao(&table, &dao.original);
+    let min = dao.minimize_update();
+    let mut query = Query::update();
+    query.table(table);
+    for column in &table.columns{
+        let value = min.get(&column.name);
+        if let Some(value) = value{
+            query.set(&column.name, value);
+        }
+    }
+	query.add_filters(&filters);
+    query.return_all();
+    let result = query.retrieve_one(context.db()?)?;
+    match result{
+        Some(result) => Ok(Some(result)),
+        None => Ok(None)
+    }
+}
+
+fn delete_dao_with_filter(context: &mut Context, table: &Table, filters: &Vec<Filter>) -> Result<usize, DbError> {
+	let mut query = Query::delete();
+	query.from(table);
+	query.add_filters(filters);
+	let debug = query.debug_build(context.db()?);
+	println!("debug: {}", debug);
+	query.execute(context.db()?)
+}
+
+fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<(),DbError>{
+    let &(ref tab, ref table) = tab_table;
+    let filters = create_filter_from_dao(&table, dao);
+    let mut query = Query::delete();
+    query.from(table);
+	query.add_filters(&filters);
+    println!("debug delete: {}", query.debug_build(context.db()?));
+    let result = query.execute(context.db()?);
+    println!("result: {:?}", result);
+    Ok(())
+}
+
+fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao,DbError> {
+    let &(ref tab, ref table) = tab_table;
+    let mut query = Query::insert();
+    query.table(table);
+    for column in &table.columns{
+        if let Some(value) = dao.get(&column.name){
+            query.set(&column.name, value);
+        }
+    }
+    query.return_all();
+    match context.db(){
+        Ok(db) => {
+            let dao: Result<Option<Dao>,DbError> = query.retrieve_one(db);
+            match dao{
+                Ok(dao) => match dao{
+                    Some(dao) => Ok(dao),
+                    None => { return Err(DbError::new("unable to get dao")); }
+                },
+                Err(e) => Err(e)
+            }
+        },
+        Err(e) => { return Err(e); }
+    }
+}
+
+
+
 
 
 fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableFilter, Vec<TableFilter>){
@@ -217,75 +476,24 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 								};
 			table_dao.push(main_table_dao);
 
-			let main_focused_filter = create_main_query_join_filter_from_focused_dao(&main_table, &main_focused_dao);
+			let main_focused_filter = create_filter_from_dao(&main_table, &main_focused_dao);
 			let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
 			let mut main_with_focused_filter = main_filter.clone();
 			main_with_focused_filter.extend_from_slice(&main_focused_filter);
 			if let &Some(ref ext_tabs) = &main_tab.ext_tabs{
-				for ext_tab in ext_tabs{
-					let ext_table = match window_api::get_matching_table(context, &ext_tab.table){
-						Some(ext_table) => ext_table,
-							None => {return Err(ServiceError::new("Unable to get table for extension"));}
-					};
-					let mut ext_query = build_query(&main_table, &ext_table, &main_with_focused_filter, rest_vquery);
-					let debug = ext_query.debug_build(context.db().unwrap());
-					println!("debug sql: {}", debug);
-					match ext_query.retrieve(context.db().unwrap()){
-						Ok(dao_result) => {
-							table_dao.push(TableDao::from_dao_result(&dao_result, &ext_table.complete_name()));
-						},
-							Err(e) => {
-								return Err(ServiceError::from(e));
-							}
-					}
-				}
+                let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, ext_tabs);
+                match ext_tab_dao {
+                    Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
+                    Err(e) => return Err(e)
+                }
 			}
 			if let &Some(ref has_many_tabs) = &main_tab.has_many_tabs{
-				for has_many in has_many_tabs{
-					let has_table = match window_api::get_matching_table(context, &has_many.table){
-						Some(has_table) => has_table,
-							None => {return Err(ServiceError::new("Unable to get table for has many"));}
-					};
-					let mut has_query = build_query(&main_table, &has_table, &main_with_focused_filter, rest_vquery);
-					let debug = has_query.debug_build(context.db().unwrap());
-					println!("debug sql: {}", debug);
-					match has_query.retrieve(context.db().unwrap()){
-						Ok(dao_result) => {
-							table_dao.push(TableDao::from_dao_result(&dao_result, &has_table.complete_name()));
-						}
-						Err(e) => {
-							return Err(ServiceError::from(e));
-						}
-					}
-				}
+                let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, has_many_tabs);
+                has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
 			}
 			if let &Some(ref has_many_indirect_tabs) = &main_tab.has_many_indirect_tabs{
-				for indirect in has_many_indirect_tabs{
-					// will use inner join to linker table, and inner join to the indirect
-					let indirect_table = match window_api::get_matching_table(context, &indirect.table){
-						Some(indirect_table) => indirect_table,
-							None => {return Err(ServiceError::new("Unable to get table for extension"));}
-					};
-					assert!(indirect.linker_table.is_some(), format!("indirect tab {} must have a linker table specified", indirect.table));
-					let linker_table_name = &indirect.linker_table.as_ref().unwrap();
-					let linker_table =match window_api::get_matching_table(context, &linker_table_name){
-						Some(linker_table) => linker_table,
-							None => { return Err(ServiceError::new("linker table can not be found")); }
-					};
-					let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
-
-					let debug = ind_query.debug_build(context.db().unwrap());
-					println!("indirect query debug sql: {}", debug);
-					match ind_query.retrieve(context.db().unwrap()){
-						Ok(dao_result) => {
-							table_dao.push(TableDao::from_dao_result(&dao_result, &indirect_table.complete_name()));
-						}
-						Err(e) => {
-							return Err(ServiceError::from(e));
-						}
-					}
-
-				}
+                let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, has_many_indirect_tabs);
+                indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
 			}
 		}
 		let rest_data = RestData{ table_dao: table_dao};
@@ -293,6 +501,67 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 	}else{
 		Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
 	}
+}
+
+/// can be used by the direct 1:1 and direct 1:M tab
+fn retrieve_data_from_direct_tabs(context: &mut Context, main_table: &Table, 
+    main_with_focused_filter: &Vec<Filter>, rest_vquery: &Vec<ValidatedQuery>, 
+    tabs: &Vec<Tab>) -> Result<Vec<TableDao>, ServiceError> {
+    let mut tabs_table_dao = vec![];
+    for tab in tabs{
+        let table = match window_api::get_matching_table(context, &tab.table){
+            Some(table) => table,
+                None => {return Err(ServiceError::new("Unable to get table for extension"));}
+        };
+        let mut query = build_query(&main_table, &table, &main_with_focused_filter, rest_vquery);
+        let debug = query.debug_build(context.db().unwrap());
+        println!("debug sql: {}", debug);
+        match query.retrieve(context.db().unwrap()){
+            Ok(dao_result) => {
+                let table_dao = TableDao::from_dao_result(&dao_result, &table.complete_name());
+                tabs_table_dao.push(table_dao);
+            },
+                Err(e) => {
+                    return Err(ServiceError::from(e));
+                }
+        }
+    }
+    Ok(tabs_table_dao)
+}
+
+fn retrieve_data_from_indirect_tabs(context: &mut Context, main_table: &Table, 
+        main_with_focused_filter: &Vec<Filter>, rest_vquery: &Vec<ValidatedQuery>, 
+        indirect_tabs: &Vec<Tab> ) -> Result<Vec<TableDao>, ServiceError> {
+
+    let mut indirect_table_dao = vec![];
+
+    for indirect in indirect_tabs{
+        // will use inner join to linker table, and inner join to the indirect
+        let indirect_table = match window_api::get_matching_table(context, &indirect.table){
+            Some(indirect_table) => indirect_table,
+                None => {return Err(ServiceError::new("Unable to get table for extension"));}
+        };
+        assert!(indirect.linker_table.is_some(), format!("indirect tab {} must have a linker table specified", indirect.table));
+        let linker_table_name = &indirect.linker_table.as_ref().unwrap();
+        let linker_table = match window_api::get_matching_table(context, &linker_table_name){
+            Some(linker_table) => linker_table,
+                None => { return Err(ServiceError::new("linker table can not be found")); }
+        };
+        let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
+
+        let debug = ind_query.debug_build(context.db().unwrap());
+        println!("indirect query debug sql: {}", debug);
+        match ind_query.retrieve(context.db().unwrap()){
+            Ok(dao_result) => {
+                let table_dao = TableDao::from_dao_result(&dao_result, &indirect_table.complete_name());
+                indirect_table_dao.push(table_dao);
+            }
+            Err(e) => {
+                return Err(ServiceError::from(e));
+            }
+        }
+    }
+    Ok(indirect_table_dao)
 }
 
 
@@ -506,8 +775,8 @@ impl QuerySearch for Vec<ValidatedQuery>{
 
 }
 
-
-fn create_main_query_join_filter_from_focused_dao(table: &Table, focused_dao: &Dao)->Vec<Filter>{
+/// build a filter based on primary key and its value
+fn create_filter_from_dao(table: &Table, focused_dao: &Dao)->Vec<Filter>{
 	let mut filters = vec![];
 	for pri in table.primary_columns(){
 		let pvalue = focused_dao.get(&pri.name);
@@ -522,6 +791,7 @@ fn create_main_query_join_filter_from_focused_dao(table: &Table, focused_dao: &D
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
+#[derive(Clone)]
 struct DaoState{
 	focused: bool,
 	dao: Dao,
@@ -548,6 +818,7 @@ impl DaoState{
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
+#[derive(Clone)]
 struct TableDao{
 	table: String,
 	dao_list: Vec<DaoState>,
@@ -759,36 +1030,78 @@ fn test_dao_minimize_update(){
 /// This is akin to simultaneously inserting relative records into different table
 /// the primary key of the main record will have to return and will be used in the referring table
 /// for the succedding insert operation
+
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
+#[derive(Clone)]
 pub struct DaoInsert{
-	dao: Dao,
-	pub referred_record_id: Option<Uuid>, // the main record_id to refer to
-	pub record_id: Uuid, //all record to be inserted must have this
+	pub record_id: Uuid, // if record that is about to be inserted belongs to the main table
+	dao: Dao, // the dao to be inserted
+    referred_record: Option<ReferredRecord>
+}
+
+#[derive(Debug)]
+#[derive(RustcEncodable)]
+#[derive(RustcDecodable)]
+#[derive(Clone)]
+pub enum ReferredRecord{
+    TemporaryId(Uuid), //when it is just inserted as well, and has not been saved into the database to yet obtain it's primary key values
+    Dao(Dao),// when it is an existing record
 }
 
 impl DaoInsert{
-	
-	/// use this when inserting to main table
-	pub fn from_dao(dao: &Dao)->Self{
-		DaoInsert{
-			dao: dao.clone(),
-			referred_record_id: None,
-			record_id: Uuid::new_v4()
-		}
-	}
 
-	/// use this when inserting in ext_table, has_many, indirect tabs
-	/// and when the main record has just been entered but will batch together
+    /// call this when the record has been inserted into the database with 
+    /// the primary values already being set
+    fn update_from_inserted_dao(orig: &DaoInsert, inserted_dao: &Dao) -> Self{
+        let mut dao_insert = orig.clone();
+        dao_insert.dao = inserted_dao.clone();
+        dao_insert
+    }
 
-	pub fn new_with_new_referred_record(dao: &Dao, referred_record_id: &Uuid)->Self{
+    /// use this when inserting to the main table
+    pub fn for_main(dao: &Dao) -> Self{
+        DaoInsert{
+            record_id: Uuid::new_v4(),
+            dao: dao.clone(),
+            referred_record: None,
+        }
+    }
+	 
+	pub fn from_dao_with_existing_parent(dao: &Dao, main_dao: &Dao)->Self{
 		DaoInsert{
-			dao: dao.clone(),
-			referred_record_id: Some(referred_record_id.clone()),
 			record_id: Uuid::new_v4(),
+			dao: dao.clone(),
+			referred_record: Some(ReferredRecord::Dao(main_dao.clone())),
 		}
 	}
+
+    pub fn from_dao_with_newly_inserted_parent(dao: &Dao, uuid: Uuid) -> Self {
+        DaoInsert{
+            record_id: Uuid::new_v4(),
+            dao: dao.clone(),
+            referred_record: Some(ReferredRecord::TemporaryId(uuid)),
+        }
+    }
+
+}
+
+trait SearchDaoInsert{
+    fn find(&self, record_id: &Uuid) -> Option<&DaoInsert>;
+}
+
+impl SearchDaoInsert for Vec<DaoInsert>{
+
+    
+    fn find(&self, record_id: &Uuid) -> Option<&DaoInsert>{
+        for insert in self{
+            if &insert.record_id == record_id{
+                return Some(insert);
+            }
+        }
+        None
+    }
 }
 
 /// the changeset of dao in a table
@@ -796,15 +1109,41 @@ impl DaoInsert{
 /// all the updated ones will be updated 2nd
 /// all the deleted ones will be deleted last
 /// deletion may cause referential integrity errors
-/// rename to BatchData?
+/// insert changeset must bear the parent table dao to know which referred primary value to refer to
+/// deleted changeset in extension tables deletes it
+/// deleted changeset in direct has_many table (order->order_line) deletes it.
+/// deleted changeset in indirect has_many table only deletes the record in the linker table that refers 
+/// the record and the main table dao,
+/// an optional delete the record in the indirect table when it is not refered by anywhere else for sanitation purposes
+/// and cleanup maintenance.
+
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
 pub struct ChangeSet{
 	pub table: String,
 	pub inserted: Vec<DaoInsert>,
-	pub deleted: Vec<Dao>,// will use the primary key value if avaialble, else the uniques, else all the matching record
-	pub updated: Vec<DaoUpdate>
+	pub deleted: Vec<Dao>,// if in has_many, delete the record, if has_many indirect, delete the linker record (and? as well together with the indirect record)?? if still referred by some other table
+	pub updated: Vec<DaoUpdate> // it's primary key value stay in change so no worry about reference errors, updates on has_many and has_many indirect may not be allowed,
 }
+
+
+trait SearchChangeSet{
+    fn find(&self, needle: &str)->Option<&ChangeSet>;
+}
+
+impl SearchChangeSet for Vec<ChangeSet>{
+    
+    fn find(&self, table: &str) -> Option<&ChangeSet>{
+        for cs in self{
+            if table == cs.table{
+                return Some(cs)
+            }
+        }
+        None
+    }
+}
+
+
 
 

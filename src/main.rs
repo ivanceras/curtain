@@ -1,5 +1,6 @@
 #![feature(plugin)]
 #![plugin(regex_macros)]
+#![feature(question_mark)]
 extern crate regex;
 extern crate iron;
 extern crate mount;
@@ -58,6 +59,7 @@ fn main() {
     router.get("/app/:main_table",app_service::app_http::http_complex_query);
     router.post("/app/:main_table",app_service::app_http::http_update_data);
     router.get("/lookup/:table", lookup_service::lookup_http::http_get_lookup_data);
+    router.delete("/cache", global::http_reset_cache);
 
     let mut middleware = Chain::new(router);
     middleware.link(State::<GlobalPools>::both(GlobalPools::new()));

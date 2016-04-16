@@ -1,6 +1,7 @@
 use global::Context;
 use window_service::window_api;
 use std::collections::HashSet;
+use rustorm::dao::Dao;
 
 /// Validates column names, function names, table names used in the query
 /// if they are valid db elements to avoid sql injection
@@ -60,6 +61,20 @@ impl DbElementValidator{
 		}
 		self.all_column_names.contains(arg)
 	}
+
+    /// just check if the keys are valid column
+    /// not checking if the column belongs to the specific table
+    /// for the dao
+    pub fn is_valid_dao(&self, dao: &Dao) -> bool{
+       for key in dao.keys(){
+            if self.is_valid_column(&key){
+                //valid column
+            }else{
+                return false;// early return if 1 is not a valid column
+            }
+       }
+       true
+    }
 }
 
 pub struct FunctionValidator{
@@ -127,4 +142,6 @@ fn get_all_supported_functions()->Vec<String>{
         "avg".to_owned(),
     ]
 }
+
+
 

@@ -8,7 +8,7 @@ use rustorm::database::DatabaseDev;
 
 
 /// try retrieving tables from cache, if none, then from db and cache it
-fn get_tables(context: &mut Context)->Vec<Table>{
+pub fn get_tables(context: &mut Context)->Vec<Table>{
 	let has_cache = context.has_cached_tables();
 	if has_cache{
 		context.get_cached_tables().unwrap()
@@ -18,7 +18,7 @@ fn get_tables(context: &mut Context)->Vec<Table>{
 }
 
 pub fn get_tables_from_db_then_cache_in_context(context: &mut Context)->Vec<Table>{
-        let db_tables = get_all_tables(context.db_dev().unwrap());
+        let db_tables = get_all_tables_from_db(context.db_dev().unwrap());
         context.cache_tables(db_tables.clone());
         db_tables
 }
@@ -132,8 +132,9 @@ pub fn list_window(context: &mut Context)->Result<Vec<Window>, String>{
 
 ///
 /// retrieve all the table definition in the database
+/// must not be called outside of this api
 ///
-pub fn get_all_tables(db_dev: &DatabaseDev) -> Vec<Table> {
+pub fn get_all_tables_from_db(db_dev: &DatabaseDev) -> Vec<Table> {
     let all_tables_names = db_dev.get_all_tables();
     let mut all_table_def: Vec<Table> = Vec::new();
     for (schema, table, is_view) in all_tables_names {

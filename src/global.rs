@@ -1,4 +1,6 @@
 use iron::prelude::*;
+use iron::method::Method::*;
+use iron::status::Status;
 use persistent::{Write, State};
 use rand::{thread_rng, Rng};
 
@@ -13,6 +15,7 @@ use rustorm::database::Database;
 use rustorm::database::DatabaseDev;
 use std::sync::{Arc,Mutex, RwLock};
 use std;
+use error::ServiceError;
 
 
 pub struct GlobalPools{
@@ -46,6 +49,19 @@ impl GlobalPools{
 			None => false
 		}
 	}
+
+	/// reset the cache with this url
+	fn reset_cache(&mut self, db_url: &str) -> Result<(),ServiceError> {
+		let cache = self.cache_map.remove(db_url);
+		if let Some(cache) = cache{
+			println!("removing cache: {:?}", cache.windows);
+			println!("removing cache: {:?}", cache.tables);
+			info!("removing cache: {:?}", cache.windows);
+			info!("removing cache: {:?}", cache.tables);
+		}
+		Ok(())
+	}
+
 	
 	pub fn get_cache(&self, db_url: &str)->Option<&Cache>{
 		self.cache_map.get(db_url)
@@ -255,6 +271,22 @@ impl Context{
         let ref mut globals = *self.arc.write().unwrap();
         globals.cache_windows(&self.db_url, windows);
     }
+
+	pub fn reset_cache(&self) -> Result<(),ServiceError> {
+		let ref mut globals = *self.arc.write().unwrap();
+		try!(globals.reset_cache(&self.db_url));
+		Ok(())
+	}
 }
 
 
+
+pub fn http_reset_cache(req: &mut Request) -> IronResult<Response>{
+	let mut context = Context::new(req);
+	match context.reset_cache(){
+		Ok(()) => {
+			Ok(Response::with((Status::Ok, "OK")))
+		},
+		Err(_) => Ok(Response::with((Status::BadRequest, "Something went wrong")))
+	}
+}

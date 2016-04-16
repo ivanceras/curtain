@@ -163,12 +163,15 @@ impl Field{
 /// formatting is only available when there are more than 1 identifier columns
 /// the default formatting is {1}-{2}
 /// format for user table will be {1}, {2}, i.e 1 = lastname, 2 = firstname
+/// TODO: possibility of adding indirect extension table: An extension table whose primary key is the primary key of the extension table which is also a foreign of the primary table lookup
 #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct Tab{
     /// derive from table.displayname()
     pub name:String,
+    /// if the contained table is owned by some other table
+    pub is_owned: bool,
     /// extension tables' fields will have to be listed along side
     /// with the main tables
     pub is_extension:bool,
@@ -222,6 +225,7 @@ impl Tab{
 
         Tab{
             name:table.displayname(),
+            is_owned: table.is_owned_or_semi_owned(all_tables),
             is_extension:false,
             is_has_one:false,
             is_has_many:false,
@@ -248,6 +252,7 @@ impl Tab{
 
         Tab{
             name:table.displayname(),
+            is_owned: table.is_owned_or_semi_owned(all_tables),
             is_extension:false,
             is_has_one:false,
             is_has_many:false,
@@ -272,6 +277,7 @@ impl Tab{
         let fields:Vec<Field> = Self::derive_fields(table, all_tables);
         Tab{
             name:column.condense_name(),
+            is_owned: table.is_owned_or_semi_owned(all_tables),
             is_extension:false,
             is_has_one:true,
             is_has_many:false,
@@ -297,6 +303,7 @@ impl Tab{
         
         Tab{
             name:ext.condensed_displayname(from_table),
+            is_owned: ext.is_owned_or_semi_owned(all_tables),
             is_extension:true,
             is_has_one:false,
             is_has_many:false,
@@ -320,6 +327,7 @@ impl Tab{
         let fields:Vec<Field> = Self::derive_fields(has_many, all_tables);
         Tab{
             name:has_many.condensed_displayname(table),
+            is_owned: has_many.is_owned_or_semi_owned(all_tables),
             is_extension:false,
             is_has_one:false,
             is_has_many:true,
@@ -344,6 +352,7 @@ impl Tab{
         let fields:Vec<Field> = Self::derive_fields(has_many, all_tables);
         Tab{
             name:has_many.condensed_displayname(linker_table),
+            is_owned: has_many.is_owned_or_semi_owned(all_tables),
             is_extension:false,
             is_has_one:false,
             is_has_many:true,
@@ -517,7 +526,7 @@ fn window_tables(tables:&Vec<Table>)->Vec<&Table>{
             info!("NOT a Window: {} <<-linker table", t.name);
         }
         else{   
-            if t.is_owned(tables){
+            if t.is_owned_or_semi_owned(tables){
                 info!("OWNED table: {}", t.name);
             }
             else{
@@ -549,6 +558,7 @@ fn window_tables(tables:&Vec<Table>)->Vec<&Table>{
     }
     window_tables
 }
+
 
 //// a summary of windows
 /// build windows from a set of tables
