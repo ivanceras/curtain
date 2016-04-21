@@ -1128,11 +1128,14 @@ pub struct ChangeSet{
 }
 
 
-trait SearchChangeSet{
-    fn find(&self, needle: &str)->Option<&ChangeSet>;
+trait Search{
+	type Output;
+    fn find(&self, needle: &str)->Option<&Self::Output>;
 }
 
-impl SearchChangeSet for Vec<ChangeSet>{
+impl Search for Vec<ChangeSet>{
+
+	type Output = ChangeSet;
     
     fn find(&self, table: &str) -> Option<&ChangeSet>{
         for cs in self{

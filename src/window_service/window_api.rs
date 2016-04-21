@@ -129,6 +129,21 @@ pub fn list_window(context: &mut Context)->Result<Vec<Window>, String>{
 }
 
 
+/// a first step to getting universal or popular tables
+pub fn get_table_tally(all_tables: &[Table]) -> Vec<(&Table, usize)> {
+	let mut tally = vec![];
+	for table in all_tables{
+		tally.push( (table, table.referring_tables(all_tables).len()) );
+	}
+	tally.sort_by(|a,b|  {
+		let &(t1, c1) = a;
+		let &(t2, c2) = b;
+		c2.cmp(&c1)
+	});
+	tally
+}
+
+
 
 ///
 /// retrieve all the table definition in the database

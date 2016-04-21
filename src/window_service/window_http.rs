@@ -22,7 +22,10 @@ use global::Context;
 pub fn http_list_window(req: &mut Request) -> IronResult<Response> {
     let mut context = Context::new(req);
 	let json = window_service::window_json::json_list_window(&mut context);
-	Ok(Response::with((Status::Ok, json)))
+    match json{
+        Ok(json) => Ok(Response::with((Status::Ok, json))),
+        Err(json) => Ok(Response::with((Status::BadRequest, json)))
+    }
 }
 
 
@@ -34,5 +37,8 @@ pub fn http_get_window(req: &mut Request) -> IronResult<Response> {
     };
     let mut context = Context::new(req);
 	let json = window_service::window_json::json_get_window(&mut context, &table);
-	Ok(Response::with((Status::Ok, json)))
+    match json{
+        Ok(json) => Ok(Response::with((Status::Ok, json))),
+        Err(json) => Ok(Response::with((Status::BadRequest, json)))
+    }
 }

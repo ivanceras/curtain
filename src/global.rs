@@ -179,7 +179,7 @@ pub struct Context{
 
 impl Context{
 
-    pub fn new(req:&mut Request)->Context{
+    pub fn new(req:&mut Request) -> Self{
         let db_url = get_db_url(req).unwrap();
         let globals = GlobalPools::from_request(req);
         
@@ -190,6 +190,19 @@ impl Context{
                         platform: None
                        };
         context
+    }
+
+    /// only use when api not called from http request
+    /// this is not shared with other threads
+    /// Warning: Do not use this when used as a web server
+    pub fn  new_from_url(db_url: &str) -> Self{
+        let globals = GlobalPools::new();
+        let arc = Arc::new(RwLock::new(globals));
+        Context{
+            db_url: db_url.into(),
+            arc: arc,
+            platform: None
+        }
     }
     
     pub fn db_dev<'a>(&'a mut self)->Result<&'a DatabaseDev,DbError>{

@@ -11,6 +11,7 @@ name = "iron_curtain"
 
 
 [dependencies]
+hyper = "0.8"
 rustc-serialize = "0.3"
 uuid = "0.2"
 iron = "0.3"

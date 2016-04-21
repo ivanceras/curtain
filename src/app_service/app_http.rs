@@ -34,7 +34,10 @@ pub fn http_complex_query(req: &mut Request)->IronResult<Response>{
 	match extract_params(req){
 		Ok( (main_table, url_query) ) => {
 			let json = app_service::app_json::json_complex_query(&mut context, &main_table, &url_query);
-			Ok(Response::with((status::Ok, json)))
+            match json{
+                Ok(json) => Ok(Response::with((status::Ok, json))),
+                Err(json) => Ok(Response::with((status::BadRequest, json)))
+            }
 		}
 		Err(e) => {
 			Ok(Response::with((status::BadRequest, format!("{:?}", e))))
@@ -51,7 +54,10 @@ pub fn http_update_data(req: &mut Request)->IronResult<Response>{
 	match main_table{
 		Some( main_table ) => {
             let json = app_service::app_json::json_update_data(&mut context, &main_table, &body);
-			Ok(Response::with((status::Ok, json)))
+            match json{
+                Ok(json) => Ok(Response::with((status::Ok, json))),
+                Err(json) => Ok(Response::with((status::BadRequest, json)))
+            }
 		}
 		None => {
 			Ok(Response::with((status::BadRequest, "No main table specified")))

@@ -13,6 +13,9 @@ pub fn http_get_lookup_data(req: &mut Request)->IronResult<Response>{
     };
 	let mut context = Context::new(req);
 	let json = lookup_service::lookup_json::json_get_lookup_data(&mut context, &table);
-	Ok(Response::with((Status::Ok, json)))
+    match json{
+       Ok(json) => 	Ok(Response::with((Status::Ok, json))),
+       Err(json) => Ok(Response::with((Status::BadRequest, json)))
+    }
 }
 
