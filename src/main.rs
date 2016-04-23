@@ -38,6 +38,7 @@ mod app_service;
 mod window_service;
 mod lookup_service;
 mod error;
+mod config;
 
 
 

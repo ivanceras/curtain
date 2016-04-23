@@ -39,6 +39,9 @@ pub fn http_data_query(req: &mut Request)->IronResult<Response>{
 	};
     let mut context = Context::new(req);
 	let json = data_service::data_json::json_data_query(&mut context, &table, iq);
-	Ok(Response::with((Status::Ok, json)))
+    match json{
+        Ok(json) => Ok(Response::with((Status::Ok, json))),
+        Err(json) => Ok(Response::with((Status::BadRequest, json)))
+    }
 }
 

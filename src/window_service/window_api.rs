@@ -34,7 +34,7 @@ fn get_windows(context: &mut Context)->Vec<Window>{
 }
 
 fn get_windows_from_db_then_cache(context: &mut Context, tables: &Vec<Table>)->Vec<Window>{
-	let db_windows = window::extract_windows(tables);
+	let db_windows = extract_windows(tables);
 	context.cache_windows(db_windows.clone());
 	db_windows
 }
@@ -124,7 +124,7 @@ pub fn retrieve_window(context :&mut Context, arg_table_name: &str)->Result<Wind
 /// list down the windows using only the summaries
 pub fn list_window(context: &mut Context)->Result<Vec<Window>, String>{
     let tables = get_tables(context);
-    let windows = window::list_windows_summary(&tables);
+    let windows = list_windows_summary(&tables);
     Ok(windows)
 }
 
@@ -160,3 +160,96 @@ pub fn get_all_tables_from_db(db_dev: &DatabaseDev) -> Vec<Table> {
     all_table_def
 }
 
+
+/// a summary of windows
+/// build windows from a set of tables
+/// 
+pub fn extract_windows(tables:&Vec<Table>)->Vec<Window>{
+    let window_tables = window_tables(tables);
+    let mut all_windows = vec![];
+    for wt in window_tables{
+        info!("{}", wt);
+        let window = Window::from_table(&wt, tables);
+        all_windows.push(window);
+    }
+    all_windows
+}
+
+
+/// list a sumamary of window tables
+pub fn list_windows_summary(tables:&Vec<Table>)->Vec<Window>{
+    let window_tables = window_tables(tables);
+    let mut window_list = vec![];
+    for t in window_tables{
+        let window = Window::summary_from_table(&t, tables);
+        window_list.push(window);
+    }
+    window_list
+}
+
+///
+/// return the list of tables that has a window
+///
+fn window_tables(tables:&Vec<Table>)->Vec<Table>{
+    let table_tally = get_table_tally(tables); 
+    let sorted_tables:Vec<Table> = table_tally.iter().map(|&(table, tally)| table.clone()).collect(); 
+    let mut window_tables = Vec::new();
+    let all_extension_tables = get_all_extension_tables(tables);
+    for t in sorted_tables{
+        if t.is_linker_table(){
+            info!("NOT a Window: {} <<-linker table", t.name);
+        }
+        else{   
+            if t.is_owned_or_semi_owned(tables){
+                info!("OWNED table: {}", t.name);
+            }
+            else{
+                if all_extension_tables.contains(&&t){
+                    info!("EXTENSION table: {}", t);
+                }
+                else{
+                    info!("{}", t.name);
+                    window_tables.push(t.clone());
+                    for (col, has1) in t.referred_tables(tables){
+                        info!("\t has one: {} -> {}", col.condense_name(), has1);
+                    }
+                    for ext in t.extension_tables(tables){
+                        info!("\t ext tab: {} [{}]", ext.name, ext.condensed_displayname(&t));
+                    }
+                    for (has_many, column) in t.referring_tables(tables){
+                        if !has_many.is_linker_table(){
+                            info!("\t has many direct: {} [{}] via column: {}", has_many.name, has_many.condensed_displayname(&t), column.name);
+                        }else{
+                            //println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
+                        }
+                    }
+                    for (has_many,linker) in t.indirect_referring_tables(tables){
+                        info!("\t has many INDIRECT: {}[{}], via {}",has_many.name, has_many.condensed_displayname(&t), linker.name);
+                    }
+                }
+            }
+        }
+    }
+    window_tables
+}
+
+
+
+
+
+
+
+
+fn get_all_extension_tables(tables:&Vec<Table>)->Vec<&Table>{
+    let mut all_extension_tables = Vec::new();
+    for t in tables{
+        for ext in t.extension_tables(tables){
+            if !all_extension_tables.contains(&ext){
+                info!("extension table: {}", ext);
+                all_extension_tables.push(ext);
+            }
+        }
+    }
+    all_extension_tables
+
+}

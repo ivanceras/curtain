@@ -11,10 +11,10 @@ use std::sync::{Arc,RwLock};
 use global::Context;
 
 
-pub fn json_data_query(context: &mut Context, table:&str, iq: Option<inquerest::Query>)->String{
+pub fn json_data_query(context: &mut Context, table:&str, iq: Option<inquerest::Query>)->Result<String, String>{
 	match data_service::data_api::retrieve_data_from_query(context, table, iq){
-		Ok(result) => json::encode(&result).unwrap(),
-		Err(e) => format!("{}",e)
+		Ok(result) => Ok(json::encode(&result).unwrap()),
+		Err(e) => Err(format!("{}",e))
 	}
 }
 

@@ -1,12 +1,18 @@
 use global::Context;
 use rustc_serialize::json;
 use app_service;
+use config;
 
 
 pub fn json_complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<String, String>{
 	match app_service::app_api::complex_query(context, main_table, url_query){
 		Ok(rest_data) => {
-			Ok(json::encode(&rest_data).unwrap())
+            let json = if config::PRETTY_JSON {
+                format!("{}", json::as_pretty_json(&rest_data))
+            }else {
+                json::encode(&rest_data).unwrap()
+            };
+			Ok(json)
 		}
 		Err(e) => {
 			Err(format!("{:?}",e))

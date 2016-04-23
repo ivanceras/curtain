@@ -24,3 +24,4 @@ pub mod app_service;
 pub mod window_service;
 pub mod lookup_service;
 pub mod error;
+pub mod config;

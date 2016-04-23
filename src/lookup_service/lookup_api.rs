@@ -39,7 +39,7 @@ impl LookupTable{
 }
 
 
-
+/// all the lookup data needed for a window
 pub fn get_lookup_data(context: &mut Context, table: &str)->Result<Vec<LookupTable>, DbError>{
 	let window = window_api::retrieve_window(context, table);
 	match window{

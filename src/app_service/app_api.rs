@@ -30,7 +30,7 @@ use rustc_serialize::json::DecoderError;
 
 
 
-pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<RestData, ServiceError>{
+pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<Vec<TableDao>, ServiceError>{
 	let validator = DbElementValidator::from_context(context);
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
 	let main_validated = main_table_filter.transform(context, &validator);
@@ -45,7 +45,7 @@ pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option
 						Err(e) => ()
 				}
 			}
-			let rest_data:Result<RestData, ServiceError> = retrieve_main_data(context, &main_validated, &rest_validated);
+			let rest_data:Result<Vec<TableDao>, ServiceError> = retrieve_main_data(context, &main_validated, &rest_validated);
             rest_data
 		},
 		Err(e) => Err(ServiceError::from(e)) 
@@ -411,26 +411,10 @@ fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableF
     (main_table_filter, rest_table_filter)
 }
 
-/// retrieve the data on this table using the query
-/// based on the focused dao, a filter will be added
-/// for the rest of the table that has link to the main table
-/// base on the filter of the main table and the primary key,
-/// all other corresponding table will be left join to tho the main table
-/// and included the filter of each other corresponding table.
-/// main_query -> main_dao
-/// main_query + table1_query -> table_dao
-
-/// list of table data for each table names
-#[derive(Debug)]
-#[derive(RustcEncodable)]
-pub struct RestData{
-	table_dao: Vec<TableDao>,
-}
-
 
 
 /// retrieve the window data for all tabs involved in this window
-fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<RestData, ServiceError>{
+fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<Vec<TableDao>, ServiceError>{
 	let main_table:Table = main_query.table.clone();
 	let main_window = match window_api::retrieve_window(context, &main_table.name){
 		Ok(main_window) => main_window,
@@ -496,8 +480,7 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
                 indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
 			}
 		}
-		let rest_data = RestData{ table_dao: table_dao};
-		Ok(rest_data)
+		Ok(table_dao)
 	}else{
 		Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
 	}
@@ -819,7 +802,7 @@ impl DaoState{
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(Clone)]
-struct TableDao{
+pub struct TableDao{
 	table: String,
 	dao_list: Vec<DaoState>,
 } 
