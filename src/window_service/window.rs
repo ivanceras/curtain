@@ -194,7 +194,7 @@ pub struct Tab{
     pub schema:Option<String>,
     pub fields:Vec<Field>,
     /// extension tabs
-    pub ext_tabs:Option<Vec<Tab>>,
+    pub ext_tabs: Vec<Tab>,
     /// has_many tabs
     pub has_many_tabs:Option<Vec<Tab>>,
     pub has_many_indirect_tabs:Option<Vec<Tab>>,
@@ -219,7 +219,7 @@ impl Tab{
     pub fn detailed_from_table(table:&Table, all_tables:&Vec<Table>)->Tab{
         let fields:Vec<Field> = Self::derive_fields(table, all_tables);
         let ext_tables = table.extension_tables(all_tables);
-        let ext_tabs = Some(Self::derive_ext_tabs(table, all_tables));
+        let ext_tabs = Self::derive_ext_tabs(table, all_tables);
         let has_many_tabs = Some(Self::derive_has_many_tabs(table, &ext_tables, all_tables));
         let has_many_indirect_tabs = Some(Self::derive_has_many_indirect_tabs(table, all_tables));
 
@@ -264,7 +264,7 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs:None,
+            ext_tabs:vec![],
             has_many_tabs:None,
             has_many_indirect_tabs:None,
             logo:None,
@@ -289,7 +289,7 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs:None,
+            ext_tabs:vec![],
             has_many_tabs:None,
             has_many_indirect_tabs:None,
             logo:None,
@@ -315,7 +315,7 @@ impl Tab{
             table:ext.name.clone(),
             schema:ext.schema.clone(),
             fields:fields,
-            ext_tabs:None,
+            ext_tabs:vec![],
             has_many_tabs:None,
             has_many_indirect_tabs:None,
             logo:None,
@@ -339,7 +339,7 @@ impl Tab{
             table:has_many.name.clone(),
             schema:has_many.schema.clone(),
             fields:fields,
-            ext_tabs:None,
+            ext_tabs:vec![],
             has_many_tabs:None,
             has_many_indirect_tabs:None,
             logo:None,
@@ -364,7 +364,7 @@ impl Tab{
             table:has_many.name.clone(),
             schema:has_many.schema.clone(),
             fields:fields,
-            ext_tabs:None,
+            ext_tabs:vec![],
             has_many_tabs:None,
             has_many_indirect_tabs:None,
             logo:None,

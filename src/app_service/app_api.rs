@@ -97,16 +97,16 @@ fn extract_window_tables(context: &mut Context, window: &Window) -> Result<Windo
         let mut ext_tables = vec![];
         let mut has_many_tables = vec![];
         let mut indirect_tables = vec![];
-        if let Some(ref ext_tabs) = main_tab.ext_tabs{
-            for ext_tab in ext_tabs{
-                let ext_table = window_api::get_matching_table(context, &ext_tab.table);
-                ext_table.map(|table| ext_tables.push( (ext_tab.clone(), table) ));
-            } 
-        }
+        for ext_tab in &main_tab.ext_tabs{
+            let ext_table = window_api::get_matching_table(context, &ext_tab.table);
+            ext_table.map(|table| ext_tables.push( (ext_tab.clone(), table) ));
+        } 
         if let Some(ref has_many_tabs) = main_tab.has_many_tabs{
             for has_many_tab in has_many_tabs{
                 let has_many_table = window_api::get_matching_table(context, &has_many_tab.table);
-                has_many_table.map(|table| has_many_tables.push( (has_many_tab.clone(), table) ));
+                has_many_table.map(|table| 
+                    has_many_tables.push( (has_many_tab.clone(), table) )
+                   );
             }
         }
         if let Some(ref has_many_indirect) = main_tab.has_many_indirect_tabs{
@@ -468,13 +468,11 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 			let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
 			let mut main_with_focused_filter = main_filter.clone();
 			main_with_focused_filter.extend_from_slice(&main_focused_filter);
-			if let &Some(ref ext_tabs) = &main_tab.ext_tabs{
-                let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, ext_tabs);
-                match ext_tab_dao {
-                    Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
-                    Err(e) => return Err(e)
-                }
-			}
+            let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, &main_tab.ext_tabs);
+            match ext_tab_dao {
+                Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
+                Err(e) => return Err(e)
+            }
 			if let &Some(ref has_many_tabs) = &main_tab.has_many_tabs{
                 let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, has_many_tabs);
                 has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
