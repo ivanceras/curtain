@@ -28,6 +28,7 @@ use global::Context;
 use window_service::window_api;
 use inquerest;
 use validator::DbElementValidator;
+use config;
 
 /// retrieve table record based on the query
 /// use the first record as the selected record
@@ -60,7 +61,9 @@ pub fn retrieve_data_from_query(context: &mut Context, arg_table: &str, iquery: 
 					let range = rng.transform();
 					query.range = range;
 				},
-				&None => {}
+				&None => {
+                    query.set_limit(config::default_page_size);
+                }
 			};
 		},
 		None => ()

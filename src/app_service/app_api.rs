@@ -27,6 +27,7 @@ use error::ParamError;
 use window_service::window::Window;
 use window_service::window::Tab;
 use rustc_serialize::json::DecoderError;
+use config;
 
 
 
@@ -429,6 +430,9 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 	let main_table_name = main_table.to_table_name();
 	mquery.enumerate_from_table(&main_table_name);
 	mquery.from(&main_table.clone());
+    if mquery.get_range().limit.is_none(){
+        mquery.set_limit(config::default_page_size);
+    }
 	let main_debug = mquery.debug_build(context.db().unwrap());
 	println!("MAIN debug sql: {}", main_debug);
 	let main_dao_result = {
