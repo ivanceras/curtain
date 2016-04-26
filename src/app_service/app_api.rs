@@ -101,25 +101,21 @@ fn extract_window_tables(context: &mut Context, window: &Window) -> Result<Windo
             let ext_table = window_api::get_matching_table(context, &ext_tab.table);
             ext_table.map(|table| ext_tables.push( (ext_tab.clone(), table) ));
         } 
-        if let Some(ref has_many_tabs) = main_tab.has_many_tabs{
-            for has_many_tab in has_many_tabs{
-                let has_many_table = window_api::get_matching_table(context, &has_many_tab.table);
-                has_many_table.map(|table| 
-                    has_many_tables.push( (has_many_tab.clone(), table) )
-                   );
-            }
+        for has_many_tab in &main_tab.has_many_tabs{
+            let has_many_table = window_api::get_matching_table(context, &has_many_tab.table);
+            has_many_table.map(|table| 
+                has_many_tables.push( (has_many_tab.clone(), table) )
+               );
         }
-        if let Some(ref has_many_indirect) = main_tab.has_many_indirect_tabs{
-            for indirect in has_many_indirect{
-                let indirect_table = window_api::get_matching_table(context, &indirect.table);
-                assert!(indirect.linker_table.is_some(), "There should be a linker here");
-                let linker_table_name = indirect.linker_table.as_ref().unwrap();
-                let linker = match window_api::get_matching_table(context, &linker_table_name){
-                    Some(linker) => linker,
-                    None => return Err(DbError::new("linker table not found"))
-                };
-                indirect_table.map( |table| indirect_tables.push( (indirect.clone(), table, linker) ));
-            }
+        for indirect in &main_tab.has_many_indirect_tabs{
+            let indirect_table = window_api::get_matching_table(context, &indirect.table);
+            assert!(indirect.linker_table.is_some(), "There should be a linker here");
+            let linker_table_name = indirect.linker_table.as_ref().unwrap();
+            let linker = match window_api::get_matching_table(context, &linker_table_name){
+                Some(linker) => linker,
+                None => return Err(DbError::new("linker table not found"))
+            };
+            indirect_table.map( |table| indirect_tables.push( (indirect.clone(), table, linker) ));
         }
         let window_tables = WindowTabTables{
                 main_table: (main_tab.clone(), main_table),
@@ -473,14 +469,10 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
                 Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
                 Err(e) => return Err(e)
             }
-			if let &Some(ref has_many_tabs) = &main_tab.has_many_tabs{
-                let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, has_many_tabs);
-                has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
-			}
-			if let &Some(ref has_many_indirect_tabs) = &main_tab.has_many_indirect_tabs{
-                let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, has_many_indirect_tabs);
-                indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
-			}
+            let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, &main_tab.has_many_tabs);
+            has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
+            let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, &main_tab.has_many_indirect_tabs);
+            indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
 		}
 		Ok(table_dao)
 	}else{

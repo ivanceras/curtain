@@ -110,22 +110,18 @@ fn get_lookup_tables_from_tab(context: &mut Context, tab: &Tab)->Vec<Table>{
             tables.push(ext_ltable);
         }
     }
-	if let Some(ref has_many_tabs) = tab.has_many_tabs{
-		for has_tab in has_many_tabs{
-			let has_ltables = get_lookup_tables_from_tab(context, &has_tab);
-			for has_ltable in has_ltables{
-				tables.push(has_ltable);
-			}
-		}
-	}
-	if let Some(ref has_many_indirect_tabs) = tab.has_many_indirect_tabs{
-		for ind_tab in has_many_indirect_tabs{
-			let ind_ltables = get_lookup_tables_from_tab(context, &ind_tab);
-			for ind_ltable in ind_ltables{
-				tables.push(ind_ltable);
-			}
-		}
-	}
+    for has_tab in &tab.has_many_tabs{
+        let has_ltables = get_lookup_tables_from_tab(context, &has_tab);
+        for has_ltable in has_ltables{
+            tables.push(has_ltable);
+        }
+    }
+    for ind_tab in &tab.has_many_indirect_tabs{
+        let ind_ltables = get_lookup_tables_from_tab(context, &ind_tab);
+        for ind_ltable in ind_ltables{
+            tables.push(ind_ltable);
+        }
+    }
 	tables
 }
 

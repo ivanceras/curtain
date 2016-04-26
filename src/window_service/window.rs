@@ -196,8 +196,8 @@ pub struct Tab{
     /// extension tabs
     pub ext_tabs: Vec<Tab>,
     /// has_many tabs
-    pub has_many_tabs:Option<Vec<Tab>>,
-    pub has_many_indirect_tabs:Option<Vec<Tab>>,
+    pub has_many_tabs:Vec<Tab>,
+    pub has_many_indirect_tabs:Vec<Tab>,
     ///optional logo/emblem for the user to uniquely identify this tab.
     ///its color pallete can be used to be as a mini theme of the window itself
     /// in order for the user to have distinct sense on each of the windows, which has
@@ -220,8 +220,8 @@ impl Tab{
         let fields:Vec<Field> = Self::derive_fields(table, all_tables);
         let ext_tables = table.extension_tables(all_tables);
         let ext_tabs = Self::derive_ext_tabs(table, all_tables);
-        let has_many_tabs = Some(Self::derive_has_many_tabs(table, &ext_tables, all_tables));
-        let has_many_indirect_tabs = Some(Self::derive_has_many_indirect_tabs(table, all_tables));
+        let has_many_tabs = Self::derive_has_many_tabs(table, &ext_tables, all_tables);
+        let has_many_indirect_tabs = Self::derive_has_many_indirect_tabs(table, all_tables);
 
 
         Tab{
@@ -265,8 +265,8 @@ impl Tab{
             schema:table.schema.clone(),
             fields:fields,
             ext_tabs:vec![],
-            has_many_tabs:None,
-            has_many_indirect_tabs:None,
+            has_many_tabs:vec![],
+            has_many_indirect_tabs:vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -289,9 +289,9 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs:vec![],
-            has_many_tabs:None,
-            has_many_indirect_tabs:None,
+            ext_tabs: vec![],
+            has_many_tabs: vec![],
+            has_many_indirect_tabs: vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -316,8 +316,8 @@ impl Tab{
             schema:ext.schema.clone(),
             fields:fields,
             ext_tabs:vec![],
-            has_many_tabs:None,
-            has_many_indirect_tabs:None,
+            has_many_tabs:vec![],
+            has_many_indirect_tabs: vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -340,8 +340,8 @@ impl Tab{
             schema:has_many.schema.clone(),
             fields:fields,
             ext_tabs:vec![],
-            has_many_tabs:None,
-            has_many_indirect_tabs:None,
+            has_many_tabs: vec![],
+            has_many_indirect_tabs: vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -365,8 +365,8 @@ impl Tab{
             schema:has_many.schema.clone(),
             fields:fields,
             ext_tabs:vec![],
-            has_many_tabs:None,
-            has_many_indirect_tabs:None,
+            has_many_tabs: vec![],
+            has_many_indirect_tabs:vec![],
             logo:None,
             icon:None,
             page_size:None,
