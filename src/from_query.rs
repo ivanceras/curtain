@@ -222,6 +222,9 @@ impl FromOperand for iq::Operand{
 					Operand::Value(Value::String(column.to_owned()))
 				}
             },
+            &&iq::Operand::Value(ref value) => {
+                Operand::Value(Value::String(value.to_owned()))
+            }
             &&iq::Operand::Number(number) => {
                 Operand::Value(Value::F64(number as f64))
             },

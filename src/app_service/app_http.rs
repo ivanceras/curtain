@@ -45,6 +45,22 @@ pub fn http_complex_query(req: &mut Request)->IronResult<Response>{
 	}
 }
 
+pub fn http_focused_record(req: &mut Request) -> IronResult<Response> {
+    let mut context = Context::new(req);
+	match extract_params(req){
+		Ok( (main_table, url_query) ) => {
+			let json = app_service::app_json::json_focused_record(&mut context, &main_table, &url_query);
+            match json{
+                Ok(json) => Ok(Response::with((status::Ok, json))),
+                Err(json) => Ok(Response::with((status::BadRequest, json)))
+            }
+		}
+		Err(e) => {
+			Ok(Response::with((status::BadRequest, format!("{:?}", e))))
+		}
+	}
+}
+
 pub fn http_update_data(req: &mut Request)->IronResult<Response>{
     let mut context = Context::new(req);
 	let main_table = req.extensions.get::<Router>().unwrap().find("main_table");

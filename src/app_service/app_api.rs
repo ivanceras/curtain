@@ -30,6 +30,29 @@ use rustc_serialize::json::DecoderError;
 use config;
 
 
+pub fn focused_record(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<Vec<TableDao>, ServiceError>{
+	let validator = DbElementValidator::from_context(context);
+    println!("url query: {:?}", url_query);
+    let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
+	let main_validated = main_table_filter.transform(context, &validator);
+	match main_validated{
+		Ok(main_validated) => {
+			let mut rest_validated = vec![];
+			for rest in rest_table_filter{
+				match rest.transform(context, &validator){
+					Ok(rtransformed) => {
+						rest_validated.push(rtransformed);
+					},
+				    Err(e) => ()
+				}
+			}
+            println!("main validated: {:#?}", main_validated);
+			let rest_data:Result<Vec<TableDao>, ServiceError> = retrieve_data_from_focused_dao(context, &main_validated, &rest_validated);
+            rest_data
+		},
+		Err(e) => Err(ServiceError::from(e)) 
+	}
+}
 
 pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<Vec<TableDao>, ServiceError>{
 	let validator = DbElementValidator::from_context(context);
@@ -50,6 +73,77 @@ pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option
             rest_data
 		},
 		Err(e) => Err(ServiceError::from(e)) 
+	}
+}
+
+/// retrieve the window data for all tabs involved in this window
+fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<Vec<TableDao>, ServiceError>{
+	let main_table:Table = main_query.table.clone();
+	let main_window = match window_api::retrieve_window(context, &main_table.name){
+		Ok(main_window) => main_window,
+			Err(e) => {return Err(ServiceError::from(e));}
+	};
+	let mut table_dao = vec![];
+	let mut mquery: Query = match main_query.query{
+		Some(ref query) => query.clone(),
+			None => Query::new()
+	};
+	println!("----->>> {:#?}", mquery);
+	let main_table_name = main_table.to_table_name();
+	mquery.enumerate_from_table(&main_table_name);
+	mquery.from(&main_table.clone());
+    if mquery.get_range().limit.is_none(){
+        mquery.set_limit(config::default_page_size);
+    }
+	let main_debug = mquery.debug_build(context.db().unwrap());
+	println!("MAIN debug sql: {}", main_debug);
+	let main_dao_result = {
+		let db = match context.db(){
+			Ok(db) => db,
+			Err(e) => {return Err(ServiceError::from(e));}
+		};
+		match mquery.retrieve(db){
+			Ok(main_dao_result) => main_dao_result,
+				Err(e) => {return Err(ServiceError::from(e));}
+		}
+	};
+    println!("main dao result: {:#?}", main_dao_result);
+    let main_table_dao = TableDao::from_dao_result(&main_dao_result, &main_table.complete_name());
+    table_dao.push(main_table_dao);
+    Ok(table_dao)
+}
+
+fn retrieve_data_from_focused_dao(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)
+    -> Result<Vec<TableDao>, ServiceError> {
+	// all the other table dao will not be retrieved when there is no focused record on the main tab
+    // if there is a focused record, then the list of records in the main table will not be included
+    let mut table_dao = vec![];
+	let main_table:Table = main_query.table.clone();
+	let main_window = match window_api::retrieve_window(context, &main_table.name){
+		Ok(main_window) => main_window,
+			Err(e) => {return Err(ServiceError::from(e));}
+	};
+	if let Some(main_tab) = main_window.tab{
+        match &main_query.focus_param{
+            &Some(ref focus_param) => { 
+                let focused_filter = focused_param_as_filter(&main_table, &focus_param);
+                let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &main_tab.ext_tabs);
+                match ext_tab_dao {
+                    Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
+                    Err(e) => return Err(e)
+                }
+                let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &main_tab.has_many_tabs);
+                has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
+                let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &focused_filter, rest_vquery, &main_tab.has_many_indirect_tabs);
+                indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
+                Ok(table_dao)
+            }
+            &None => {
+                Err(ServiceError::new(&format!("no focused record specified")))
+            }
+        }
+	}else{
+		Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
 	}
 }
 
@@ -410,75 +504,6 @@ fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableF
 
 
 
-/// retrieve the window data for all tabs involved in this window
-fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<Vec<TableDao>, ServiceError>{
-	let main_table:Table = main_query.table.clone();
-	let main_window = match window_api::retrieve_window(context, &main_table.name){
-		Ok(main_window) => main_window,
-			Err(e) => {return Err(ServiceError::from(e));}
-	};
-	let mut table_dao = vec![];
-	let mut mquery: Query = match main_query.query{
-		Some(ref query) => query.clone(),
-			None => Query::new()
-	};
-	println!("----->>> {:#?}", mquery);
-	let main_table_name = main_table.to_table_name();
-	mquery.enumerate_from_table(&main_table_name);
-	mquery.from(&main_table.clone());
-    if mquery.get_range().limit.is_none(){
-        mquery.set_limit(config::default_page_size);
-    }
-	let main_debug = mquery.debug_build(context.db().unwrap());
-	println!("MAIN debug sql: {}", main_debug);
-	let main_dao_result = {
-		let db = match context.db(){
-			Ok(db) => db,
-			Err(e) => {return Err(ServiceError::from(e));}
-		};
-		match mquery.retrieve(db){
-			Ok(main_dao_result) => main_dao_result,
-				Err(e) => {return Err(ServiceError::from(e));}
-		}
-	};
-
-    println!("main dao result: {:#?}", main_dao_result);
-
-	// all the other table dao will not be retrieved when there is no focused record on the main tab
-
-	if let Some(main_tab) = main_window.tab{
-        let main_focused_dao = extract_focused_dao(&main_table, &main_dao_result.dao, &main_query.focus_param);
-        if main_focused_dao.is_none(){// if nothing is focused, just return the table dao even without marked focused
-            let main_table_dao = TableDao::from_dao_result(&main_dao_result, &main_table.complete_name());
-			table_dao.push(main_table_dao);
-        }
-        if let Some(main_focused_dao) = extract_focused_dao(&main_table, &main_dao_result.dao, &main_query.focus_param){
-			let main_dao_state = mark_focused_record(&main_dao_result.dao, &main_focused_dao);
-			let main_table_dao = TableDao{
-									table: main_table.complete_name(), 
-									dao_list: main_dao_state
-								};
-			table_dao.push(main_table_dao);
-
-			let main_focused_filter = create_filter_from_dao(&main_table, &main_focused_dao);
-			let main_filter:Vec<Filter> = extract_comprehensive_filter(&main_table, &mquery);
-			let mut main_with_focused_filter = main_filter.clone();
-			main_with_focused_filter.extend_from_slice(&main_focused_filter);
-            let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, &main_tab.ext_tabs);
-            match ext_tab_dao {
-                Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
-                Err(e) => return Err(e)
-            }
-            let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, &main_tab.has_many_tabs);
-            has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
-            let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &main_with_focused_filter, rest_vquery, &main_tab.has_many_indirect_tabs);
-            indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
-		}
-		Ok(table_dao)
-	}else{
-		Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
-	}
-}
 
 /// can be used by the direct 1:1 and direct 1:M tab
 fn retrieve_data_from_direct_tabs(context: &mut Context, main_table: &Table, 
@@ -630,6 +655,30 @@ fn extract_focused_dao(table:&Table, dao_list: &Vec<Dao>, focus_param: &Option<F
 	}else{
 		None
 	}
+}
+
+fn focused_param_as_filter(table: &Table, focused_param: &FocusParam) -> Vec<Filter> {
+    match focused_param{
+        &FocusParam::Index(index) => {
+            panic!("this is unsupported");
+        },
+        &FocusParam::PrimaryBlob(ref blob) => {
+            let pkeys = table.primary_columns();
+            let blob: Vec<&str> = blob.split(",").collect();
+            assert!(pkeys.len() ==  blob.len(), "focused_record should only have the same length as the number of primary keys");
+            let mut filters = vec![];
+            for i in 0..pkeys.len(){
+                let pk = pkeys[i];
+                let bvalue = blob[i];
+                let value = Value::String(bvalue.to_owned());
+                let corrected_value = data_api::correct_value_type(&value, &pk.data_type);
+                let complete_name = format!("{}.{}",table.name, pk.name);
+                let filter = Filter::new(&complete_name, Equality::EQ, &corrected_value);
+                filters.push(filter);
+            }
+            filters
+        }
+    }
 }
 
 fn match_needle(dao:&Dao, needle: &BTreeMap<String, Value>)->bool{
@@ -842,6 +891,7 @@ impl TableFilter{
 					match parsed{
 						Ok(parsed) => {
 							let focus_param = extract_focus_param(&parsed);
+                            println!("got focused_param: {:#?}", focus_param);
 							let transformed = parsed.transform(&validator);
 							let vquery = ValidatedQuery{
 								table: table,
@@ -851,7 +901,7 @@ impl TableFilter{
 							Ok(vquery)
 						},
 						Err(e) => {
-							Err(ParseError::new("unable to parse query"))
+							Err(ParseError::new(&format!("unable to parse query {}", e)))
 						}
 					}
 				},
@@ -874,23 +924,30 @@ impl TableFilter{
 /// prioritized focused_record than focused
 fn extract_focus_param(iquery: &iq::Query)->Option<FocusParam>{
 	let focused_record = find_in_equation(&iquery.equations, "focused_record");
+    println!("focused_record: {:?}", focused_record);
 	if let Some(focused_record) = focused_record {
-		match focused_record{
-			&iq::Operand::Number(number) => {
-				let primary_blob = format!("{}",number);
-				return Some(FocusParam::PrimaryBlob(primary_blob))
-			},
-				&iq::Operand::Column(ref column) => {
-					// example: focused_record=efc62342-1230af,100001
-					let primary_blob = format!("{}",column);
-					return Some(FocusParam::PrimaryBlob(primary_blob))
-				},
-				&iq::Operand::Boolean(value)=>{
-					let primary_blob = format!("{}", value);
-					return Some(FocusParam::PrimaryBlob(primary_blob))
-				},
-				_ => ()
-		}
+        match focused_record{
+            &iq::Operand::Number(number) => {
+                let primary_blob = format!("{}",number);
+                return Some(FocusParam::PrimaryBlob(primary_blob))
+            }
+            &iq::Operand::Column(ref column) => {
+                // example: focused_record=efc62342-1230af,100001
+                let primary_blob = format!("{}",column);
+                return Some(FocusParam::PrimaryBlob(primary_blob))
+            }
+            &iq::Operand::Boolean(value)=>{
+                let primary_blob = format!("{}", value);
+                return Some(FocusParam::PrimaryBlob(primary_blob))
+            }
+            &iq::Operand::Value(ref value) => {
+                let primary_blob = format!("{}", value);
+                return Some(FocusParam::PrimaryBlob(primary_blob))
+            }
+            &iq::Operand::Function(ref value) => {
+                panic!("functions are unsupported");
+            }
+        }
 	}
 	let focused = find_in_equation(&iquery.equations, "focused");
 	if let Some(focused) = focused{
