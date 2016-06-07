@@ -62,7 +62,10 @@ pub struct Field{
     pub info:Option<String>,
     /// whether or not this field, contributes to the records identity
     /// the distinctive display name will be derived from fields marked a identifier
-    pub is_identifier:bool,
+    pub is_significant:bool,
+    /// order by significance, 10, 20, 30.. etc
+    /// first significant will be displayed when in compact list
+    pub significance_priority: Option<u32>,
     /// whether or not this field, will have to be included in the searching of records
     /// same as is_selection_column
     pub include_in_search:bool,
@@ -88,7 +91,7 @@ pub struct Field{
     /// example $active == true
     pub display_logic:Option<String>,
     /// the preffered length of the text this field will occupy 
-    pub display_length:Option<String>, 
+    pub display_length:Option<u32>, 
     /// this can be displayed in the placeholder value, by evaluating the defaults
     /// such as now() and try to come up with a value, which is the current date
     pub default_value:Option<String>,
@@ -102,7 +105,7 @@ impl Field{
     /// is_display can be run with intel runner
     pub fn from_column(column:&Column, table:&Table, tables:&Vec<Table>)->Field{
         let complete_name = format!("{}.{}",table.complete_name(),column.name);
-        Field{
+        let mut field = Field{
             name:column.displayname(),
             column:column.name.clone(),
             complete_name: complete_name,
@@ -112,7 +115,8 @@ impl Field{
             reference_value:None,
             description:column.comment.clone(),
             info:None,
-            is_identifier: column.is_unique,
+            is_significant: false,
+            significance_priority: None,
             include_in_search:column.is_unique,
             is_mandatory:column.is_primary || column.is_unique,
             seq_no:0,
@@ -123,12 +127,13 @@ impl Field{
             display_logic:None,
             display_length:None, 
             default_value:None,
-        }
+        };
+        field.update_field_info(column)
     }
     
     pub fn from_has_one_column(column:&Column, table:&Table, has_one:&Table, tables:&Vec<Table>)->Field{
         let complete_name = format!("{}.{}",table.complete_name(),column.name);
-        Field{
+        let mut field = Field{
             name:column.condense_name(),
             column:column.name.clone(),
             complete_name: complete_name,
@@ -138,7 +143,8 @@ impl Field{
             reference_value:Some(has_one.complete_name()),
             description:column.comment.clone(),
             info:None,
-            is_identifier:column.is_unique,
+            is_significant: false,
+            significance_priority: None,
             include_in_search:column.is_unique,
             is_mandatory:column.is_primary || column.is_unique,
             seq_no:0,
@@ -149,10 +155,142 @@ impl Field{
             display_logic:None,
             display_length:None, 
             default_value:None,
-        }
+        };
+        field.update_field_info(column)
     }
     
-    
+
+    fn update_field_info(mut self, column:&Column)->Field{
+        match column.name.as_ref(){
+            "client" =>{
+                    self.is_significant = false;
+                    self.seq_no = 100;
+                    self.is_displayed = false;
+                    self.display_length = Some(20);
+                    self.is_readonly = true;
+                    self
+                },
+            "organization" =>{
+                    self.is_significant = false;
+                    self.seq_no = 120;
+                    self.is_displayed = false;
+                    self.display_length = Some(20);
+                    self.is_readonly = true;
+                    self
+                },
+
+            "name" =>{
+                    self.is_significant = true;
+                    self.significance_priority = Some(10);
+                    self.seq_no = 200;
+                    self.is_displayed = true;
+                    self.display_length = Some(20);
+                    self.is_readonly = false;
+                    self
+                },
+            "value" =>{
+                    self.is_significant = true;
+                    self.significance_priority = Some(20);
+                    self.seq_no = 210;
+                    self.is_displayed = true;
+                    self.display_length = Some(20);
+                    self.is_readonly = false;
+                    self
+                },
+            "code" =>{
+                    self.is_significant = true;
+                    self.significance_priority = Some(30);
+                    self.seq_no = 220;
+                    self.is_displayed = true;
+                    self.display_length = Some(20);
+                    self.is_readonly = false;
+                    self
+                },
+            "description" =>{
+                    self.is_significant = true;
+                    self.significance_priority = Some(40);
+                    self.seq_no = 230;
+                    self.is_displayed = true;
+                    self.display_length = Some(100);
+                    self.is_readonly = false;
+                    self
+                },
+            "active" =>{
+                    self.is_significant = false;
+                    self.significance_priority = None;
+                    self.seq_no = 240;
+                    self.is_displayed = true;
+                    self.display_length = Some(100);
+                    self.is_readonly = false;
+                    self
+                },
+            "created" =>{
+                    self.is_significant = false;
+                    self.significance_priority = None;
+                    self.seq_no = 300;
+                    self.is_displayed = false;
+                    self.display_length = Some(20);
+                    self.is_readonly = true;
+                    self
+                },
+            "created_by" =>{
+                    self.is_significant = false;
+                    self.significance_priority = None;
+                    self.seq_no = 310;
+                    self.is_displayed = false;
+                    self.display_length = Some(20);
+                    self.is_readonly = true;
+                    self
+                },
+            "updated" =>{
+                    self.is_significant = false;
+                    self.significance_priority = None;
+                    self.seq_no = 320;
+                    self.is_displayed = false;
+                    self.display_length = Some(20);
+                    self.is_readonly = true;
+                    self
+                },
+            "updated_by" =>{
+                    self.is_significant = false;
+                    self.significance_priority = None;
+                    self.seq_no = 330;
+                    self.is_displayed = false;
+                    self.display_length = Some(20);
+                    self.is_readonly = true;
+                    self
+                },
+            _ => {
+                    if column.is_unique{
+                        self.is_significant = true;
+                        self.significance_priority = Some(100);
+                        self.seq_no = 215;
+                        self.is_displayed =true;
+                        self.display_length = Some(20);
+                        self.is_readonly = false;
+                        self
+                    }
+                    else if column.is_primary{
+                        self.is_significant = false;
+                        self.significance_priority = None;
+                        self.seq_no = 10;
+                        self.is_displayed = false;
+                        self.display_length = Some(20);
+                        self.is_readonly = false;
+                        self
+                    }
+                    else{
+                        self.is_significant = false;
+                        self.seq_no = 1000;
+                        self.is_displayed =true;
+                        self.display_length = Some(20);
+                        self.is_readonly = false;
+                        self
+                    }
+            }
+        } 
+    }
+
 
 }
 
@@ -193,11 +331,6 @@ pub struct Tab{
     pub table:String,
     pub schema:Option<String>,
     pub fields:Vec<Field>,
-    /// extension tabs
-    pub ext_tabs: Vec<Tab>,
-    /// has_many tabs
-    pub has_many_tabs:Vec<Tab>,
-    pub has_many_indirect_tabs:Vec<Tab>,
     ///optional logo/emblem for the user to uniquely identify this tab.
     ///its color pallete can be used to be as a mini theme of the window itself
     /// in order for the user to have distinct sense on each of the windows, which has
@@ -218,11 +351,6 @@ impl Tab{
     /// derive a detailed tab from a table definition
     pub fn detailed_from_table(table:&Table, all_tables:&Vec<Table>)->Tab{
         let fields:Vec<Field> = Self::derive_fields(table, all_tables);
-        let ext_tables = table.extension_tables(all_tables);
-        let ext_tabs = Self::derive_ext_tabs(table, all_tables);
-        let has_many_tabs = Self::derive_has_many_tabs(table, &ext_tables, all_tables);
-        let has_many_indirect_tabs = Self::derive_has_many_indirect_tabs(table, all_tables);
-
 
         Tab{
             name:table.displayname(),
@@ -237,9 +365,6 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs: ext_tabs,
-            has_many_tabs: has_many_tabs,
-            has_many_indirect_tabs: has_many_indirect_tabs,
             logo:None,
             icon:None,
             page_size:None,
@@ -264,9 +389,6 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs:vec![],
-            has_many_tabs:vec![],
-            has_many_indirect_tabs:vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -289,9 +411,6 @@ impl Tab{
             table:table.name.clone(),
             schema:table.schema.clone(),
             fields:fields,
-            ext_tabs: vec![],
-            has_many_tabs: vec![],
-            has_many_indirect_tabs: vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -315,9 +434,6 @@ impl Tab{
             table:ext.name.clone(),
             schema:ext.schema.clone(),
             fields:fields,
-            ext_tabs:vec![],
-            has_many_tabs:vec![],
-            has_many_indirect_tabs: vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -339,9 +455,6 @@ impl Tab{
             table:has_many.name.clone(),
             schema:has_many.schema.clone(),
             fields:fields,
-            ext_tabs:vec![],
-            has_many_tabs: vec![],
-            has_many_indirect_tabs: vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -364,9 +477,6 @@ impl Tab{
             table:has_many.name.clone(),
             schema:has_many.schema.clone(),
             fields:fields,
-            ext_tabs:vec![],
-            has_many_tabs: vec![],
-            has_many_indirect_tabs:vec![],
             logo:None,
             icon:None,
             page_size:None,
@@ -387,6 +497,7 @@ impl Tab{
                 fields.push(Field::from_column(c, table, all_tables));
             }
         }
+        fields.sort_by(|a,b| a.seq_no.cmp(&b.seq_no));
         fields
     }
     
@@ -473,7 +584,12 @@ pub struct Window{
     ///main tab, must have at least 1
     /// more helpful information about this window
     pub info:Option<String>,
-    pub tab:Option<Tab>,
+    pub main_tab:Option<Tab>,
+    /// extension tabs
+    pub ext_tabs: Vec<Tab>,
+    /// has_many tabs
+    pub has_many_tabs:Vec<Tab>,
+    pub has_many_indirect_tabs:Vec<Tab>,
 }
 
 
@@ -481,13 +597,20 @@ impl Window{
     
     ///Create a window base from a table
     pub fn from_table(table:&Table, all_tables:&Vec<Table>)->Window{
+        let ext_tables = table.extension_tables(all_tables);
+        let ext_tabs = Tab::derive_ext_tabs(table, all_tables);
+        let has_many_tabs = Tab::derive_has_many_tabs(table, &ext_tables, all_tables);
+        let has_many_indirect_tabs = Tab::derive_has_many_indirect_tabs(table, all_tables);
         Window{
             name: table.displayname(),
             description: table.comment.clone(),
             table: table.name.to_string(),
             schema: table.schema.to_owned(),
             info: None,
-            tab:Some(Tab::detailed_from_table(table, all_tables)),
+            main_tab:Some(Tab::detailed_from_table(table, all_tables)),
+            ext_tabs: ext_tabs,
+            has_many_tabs: has_many_tabs,
+            has_many_indirect_tabs: has_many_indirect_tabs,
         }
     }
     
@@ -499,7 +622,10 @@ impl Window{
             schema: table.schema.to_owned(),
             description: table.comment.clone(),
             info: None,
-            tab:None,
+            main_tab:None,
+            ext_tabs: vec![],
+            has_many_tabs: vec![],
+            has_many_indirect_tabs: vec![],
         }
     }
     

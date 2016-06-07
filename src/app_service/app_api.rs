@@ -119,22 +119,22 @@ fn retrieve_data_from_focused_dao(context: &mut Context, main_query: &ValidatedQ
     // if there is a focused record, then the list of records in the main table will not be included
     let mut table_dao = vec![];
 	let main_table:Table = main_query.table.clone();
-	let main_window = match window_api::retrieve_window(context, &main_table.name){
-		Ok(main_window) => main_window,
+	let window = match window_api::retrieve_window(context, &main_table.name){
+		Ok(window) => window,
 			Err(e) => {return Err(ServiceError::from(e));}
 	};
-	if let Some(main_tab) = main_window.tab{
+	if let Some(main_tab) = window.main_tab{
         match &main_query.focus_param{
             &Some(ref focus_param) => { 
                 let focused_filter = focused_param_as_filter(&main_table, &focus_param);
-                let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &main_tab.ext_tabs);
+                let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &window.ext_tabs);
                 match ext_tab_dao {
                     Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
                     Err(e) => return Err(e)
                 }
-                let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &main_tab.has_many_tabs);
+                let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &window.has_many_tabs);
                 has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
-                let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &focused_filter, rest_vquery, &main_tab.has_many_indirect_tabs);
+                let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &focused_filter, rest_vquery, &window.has_many_indirect_tabs);
                 indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
                 Ok(table_dao)
             }
@@ -183,7 +183,7 @@ struct WindowTabTables{
 }
 
 fn extract_window_tables(context: &mut Context, window: &Window) -> Result<WindowTabTables, DbError> {
-    if let Some(ref main_tab) = window.tab{
+    if let Some(ref main_tab) = window.main_tab{
         let main_table = match window_api::get_matching_table(context, &main_tab.table){
             Some(main_table) => main_table,
             None => { return Err(DbError::new("no main table found"));}
@@ -191,17 +191,17 @@ fn extract_window_tables(context: &mut Context, window: &Window) -> Result<Windo
         let mut ext_tables = vec![];
         let mut has_many_tables = vec![];
         let mut indirect_tables = vec![];
-        for ext_tab in &main_tab.ext_tabs{
+        for ext_tab in &window.ext_tabs{
             let ext_table = window_api::get_matching_table(context, &ext_tab.table);
             ext_table.map(|table| ext_tables.push( (ext_tab.clone(), table) ));
         } 
-        for has_many_tab in &main_tab.has_many_tabs{
+        for has_many_tab in &window.has_many_tabs{
             let has_many_table = window_api::get_matching_table(context, &has_many_tab.table);
             has_many_table.map(|table| 
                 has_many_tables.push( (has_many_tab.clone(), table) )
                );
         }
-        for indirect in &main_tab.has_many_indirect_tabs{
+        for indirect in &window.has_many_indirect_tabs{
             let indirect_table = window_api::get_matching_table(context, &indirect.table);
             assert!(indirect.linker_table.is_some(), "There should be a linker here");
             let linker_table_name = indirect.linker_table.as_ref().unwrap();

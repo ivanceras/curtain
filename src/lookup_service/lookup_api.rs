@@ -60,8 +60,8 @@ pub fn retrieve_lookup_tables_from_window(context: &mut Context, window: &Window
 fn get_lookup_tables(context: &mut Context, window: &Window)->Result<Vec<Table>,DbError>{
 	println!("Getting lookup tables for {}", window.name);	
 	let mut tables:Vec<Table> = vec![];
-	if let Some(ref tab) = window.tab{
-		let tab_lookups = get_lookup_tables_from_tab(context, tab);
+	if let Some(ref tab) = window.main_tab{
+		let tab_lookups = get_lookup_tables_from_window(context, window);
 		for tl in tab_lookups{
 			if tables.contains(&tl){
 				warn!("this table is already added");
@@ -89,41 +89,29 @@ impl Contains for Vec<Table>{
 	}
 }
 
-fn get_lookup_tables_from_tab(context: &mut Context, tab: &Tab)->Vec<Table>{
+fn get_lookup_tables_from_window(context: &mut Context, window: &Window)->Vec<Table>{
 	let mut tables: Vec<Table> = vec![];
-	for ref field in &tab.fields{
-		if field.reference == "Table"{
-			assert!(field.reference_value.is_some(), "Table lookup should be specified");
-			if let Some(ref ref_table_name) = field.reference_value{
-				let table = window_api::get_matching_table(context, ref_table_name);
-				if let Some(table) = table{
-					tables.push(table);
-				}else{
-					warn!("Unable to get matching table");
-				}
-			}
-		}
-	}
-    for ext_tab in &tab.ext_tabs{
-        let ext_ltables = get_lookup_tables_from_tab(context, &ext_tab);
-        for ext_ltable in ext_ltables{
-            tables.push(ext_ltable);
+    match window.main_tab{
+        Some(ref tab) => {
+            for ref field in &tab.fields{
+                if field.reference == "Table"{
+                    assert!(field.reference_value.is_some(), "Table lookup should be specified");
+                    if let Some(ref ref_table_name) = field.reference_value{
+                        let table = window_api::get_matching_table(context, ref_table_name);
+                        if let Some(table) = table{
+                            tables.push(table);
+                        }else{
+                            warn!("Unable to get matching table");
+                        }
+                    }
+                }
+            }
         }
-    }
-    for has_tab in &tab.has_many_tabs{
-        let has_ltables = get_lookup_tables_from_tab(context, &has_tab);
-        for has_ltable in has_ltables{
-            tables.push(has_ltable);
-        }
-    }
-    for ind_tab in &tab.has_many_indirect_tabs{
-        let ind_ltables = get_lookup_tables_from_tab(context, &ind_tab);
-        for ind_ltable in ind_ltables{
-            tables.push(ind_ltable);
-        }
-    }
-	tables
+       None => ()
+    };
+    tables
 }
+
 
 fn retrieve_data_from_lookup_table(context: &mut Context, tables: &Vec<Table>)->Result<Vec<LookupTable>,DbError>{
 	let mut lookup_tables: Vec<LookupTable> = vec![];
