@@ -60,7 +60,8 @@ fn main() {
     router.get("/app/:main_table",app_service::app_http::http_complex_query);
     router.get("/app/focus/:main_table",app_service::app_http::http_focused_record);
     router.post("/app/:main_table",app_service::app_http::http_update_data);
-    router.get("/lookup/:table", lookup_service::lookup_http::http_get_lookup_data);
+    router.get("/lookup_data/:main_table", lookup_service::lookup_http::http_get_lookup_data);
+    router.get("/lookup_tabs/:main_table", lookup_service::lookup_http::http_get_lookup_tabs);//get the lookup tabs for each lookup on this main_table
     router.delete("/cache", global::http_reset_cache);
 
     let mut middleware = Chain::new(router);

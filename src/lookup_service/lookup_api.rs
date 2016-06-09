@@ -47,11 +47,27 @@ pub fn get_lookup_data(context: &mut Context, table: &str)->Result<Vec<LookupTab
 		Err(e) => Err(DbError::new("unable to retrieve table"))
 	}
 }
+/// all looked up tabs on this window
+pub fn get_lookup_tabs(context: &mut Context, table: &str)->Result<Vec<Tab>, DbError>{
+	let window = window_api::retrieve_window(context, table);
+	match window{
+		Ok(ref window) => retrieve_lookup_tables_tabs_from_window(context, window),
+		Err(e) => Err(DbError::new("unable to retrieve table"))
+	}
+}
 
 pub fn retrieve_lookup_tables_from_window(context: &mut Context, window: &Window)->Result<Vec<LookupTable>, DbError>{
 	let lookup_tables = get_lookup_tables(context, window);
 	match lookup_tables{
 		Ok(lookup_tables) => retrieve_data_from_lookup_table(context, &lookup_tables),
+		Err(e) => Err(e)
+	}
+}
+
+pub fn retrieve_lookup_tables_tabs_from_window(context: &mut Context, window: &Window)->Result<Vec<Tab>, DbError>{
+	let lookup_tables = get_lookup_tables(context, window);
+	match lookup_tables{
+		Ok(lookup_tables) => Ok(build_tabs_from_tables(context, &lookup_tables)),
 		Err(e) => Err(e)
 	}
 }
@@ -149,4 +165,14 @@ fn retrieve_data_from_lookup_table(context: &mut Context, tables: &Vec<Table>)->
 		}
 	}
 	Ok(lookup_tables)
+}
+
+fn build_tabs_from_tables(context: &mut Context, tables: &Vec<Table>)->Vec<Tab>{
+    let all_tables = window_api::get_tables(context);
+    let mut tabs = vec![];
+	for table in tables{
+        let tab = Tab::detailed_from_table(table, &all_tables);
+        tabs.push(tab);
+	}
+    tabs	
 }

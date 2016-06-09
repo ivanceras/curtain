@@ -163,6 +163,7 @@ impl Field{
     fn update_field_info(mut self, column:&Column)->Field{
         match column.name.as_ref(){
             "client" =>{
+                    println!("client matched...");
                     self.is_significant = false;
                     self.seq_no = 100;
                     self.is_displayed = false;
