@@ -6,6 +6,10 @@ A data-only administration tool for postgresql, which understand relationship be
 
 Inspired by: Application Dictionary of Compiere, Adempiere, Openbravo.
 
+## Vision
+ - A data application that is easy to use even for non-programmers. This will be achieve by not using terms such as `primary keys`, `foreign keys` which are not easily understood by non programmers.
+ - This will be achieve by inferring relationships between data
+
 
 ## Clients
 There are Work in progress clients 

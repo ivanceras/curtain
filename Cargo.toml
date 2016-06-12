@@ -28,11 +28,11 @@ chrono = {version = "0.2", features = ["rustc-serialize"]}
 
 [dependencies.inquerest]
 version = "0.0.9"
-path = "../inquerest"
+#path = "../inquerest"
 
 [dependencies.rustorm]
 version = "^0.5"
-path = "../rustorm"
+#path = "../rustorm"
 
 
 
