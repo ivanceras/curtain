@@ -22,8 +22,6 @@ rand = "0.3"
 log = "0.3"
 env_logger = "0.3"
 unicase = "1.4"
-#regex = "0.1"
-#regex_macros = "0.1"
 chrono = {version = "0.2", features = ["rustc-serialize"]}
 
 [dependencies.inquerest]
