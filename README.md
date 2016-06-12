@@ -24,8 +24,9 @@ There are Work in progress clients
     ![](https://raw.githubusercontent.com/ivanceras/curtain_gtk/master/screenshot/client_side.png)
 
 
-3. [curtain_elm](https://github.com/ivanceras/curtain_elm) - TODO: elm implementation. Despite using simplistic framework, in javascript implementation, it gets realy hard to quickly grasp the original intent of the code that were previously written. As a programmer who jumps from multiple languages and frameworks, I had no problem jumping in between multiple rust projects. This is a different case for javascript projects. I'm giving elm a shot on this.
-
+3. [curtain_elm](https://github.com/ivanceras/curtain-elm) - Early progress using elm implementation. Despite using simplistic framework, in javascript implementation, it gets realy hard to quickly grasp the original intent of the code that were previously written. As a programmer who jumps from multiple languages and frameworks, I had no problem jumping in between multiple rust projects. This is a different case for javascript projects. I'm giving elm a shot on this.
+4. 
+   ![](https://raw.githubusercontent.com/ivanceras/curtain-elm/master/screenshot.png)
 
 ## Quick start installation
 
