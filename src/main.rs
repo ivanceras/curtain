@@ -1,7 +1,7 @@
 #![feature(plugin)]
-#![plugin(regex_macros)]
+//#![plugin(regex_macros)]
 #![feature(question_mark)]
-extern crate regex;
+//extern crate regex;
 extern crate iron;
 extern crate mount;
 extern crate persistent;
