@@ -146,22 +146,20 @@ fn retrieve_data_from_lookup_table(context: &mut Context, tables: &Vec<Table>)->
 		};
 		if let Some(est_row_count) = est_row_count{
 			let thresh_hold = 20;
-			if est_row_count < thresh_hold{
-				//retrieve_lookup_dao
-				let table_name = table.to_table_name();
-				let mut query = Query::select();
-				query.enumerate_from_table(&table_name);
-				query.from(table);
-				query.set_limit(thresh_hold);
-				let debug = query.debug_build(context.db().unwrap());
-				println!("debug sql: {}", debug);
-				let dao_result = match query.retrieve(context.db().unwrap()){
-					Ok(dao_result) => dao_result,
-						Err(e) =>  {return Err(e);}
-				};
-				let ltable = LookupTable::from_dao_result(&dao_result, &table.complete_name());
-				lookup_tables.push(ltable);
-			}
+			//retrieve_lookup_dao
+            let table_name = table.to_table_name();
+            let mut query = Query::select();
+            query.enumerate_from_table(&table_name);
+            query.from(table);
+            query.set_limit(thresh_hold);
+            let debug = query.debug_build(context.db().unwrap());
+            println!("debug sql: {}", debug);
+            let dao_result = match query.retrieve(context.db().unwrap()){
+                Ok(dao_result) => dao_result,
+                    Err(e) =>  {return Err(e);}
+            };
+            let ltable = LookupTable::from_dao_result(&dao_result, &table.complete_name());
+            lookup_tables.push(ltable);
 		}
 	}
 	Ok(lookup_tables)

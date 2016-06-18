@@ -1,8 +1,6 @@
 use iron::prelude::*;
-use iron::method::Method::*;
 use iron::status::Status;
-use persistent::{Write, State};
-use rand::{thread_rng, Rng};
+use persistent::{State};
 
 use rustorm::pool::ManagedPool;
 use iron::typemap::Key;
@@ -13,8 +11,7 @@ use rustorm::pool::Platform;
 use rustorm::database::DbError;
 use rustorm::database::Database;
 use rustorm::database::DatabaseDev;
-use std::sync::{Arc,Mutex, RwLock};
-use std;
+use std::sync::{Arc, RwLock};
 use error::ServiceError;
 
 
@@ -209,9 +206,6 @@ impl Context{
         let platform = self.get_connection();
         self.platform = Some(platform.unwrap());
         Ok(self.platform.as_ref().unwrap().as_dev())
-    }
-    fn db_url(&self)->String{
-        self.db_url.to_owned()
     }
     pub fn db<'a>(&'a mut self)->Result<&'a Database,DbError>{
         match self.ensure_has_connection(){

@@ -131,10 +131,11 @@ impl Field{
         field.update_field_info(column)
     }
     
+    /// TODO: If this column refers to a foreign column, the column name will be the condensed table name
     pub fn from_has_one_column(column:&Column, table:&Table, has_one:&Table, tables:&Vec<Table>)->Field{
         let complete_name = format!("{}.{}",table.complete_name(),column.name);
         let mut field = Field{
-            name:column.condense_name(),
+            name:has_one.condensed_displayname(table),
             column:column.name.clone(),
             complete_name: complete_name,
             is_keyfield:column.is_primary,
@@ -340,9 +341,9 @@ pub struct Tab{
     pub logo:Option<String>,
     /// a small image to be embedded on the toolbar or tooltip when used in a referred lookup
     pub icon:Option<String>,
-    /// an optional page size of when paging records on this tab
-    /// items_per_page
-    pub page_size:Option<u32>,
+    ///
+    /// estimated row count for hinting the size of the table to be displayed
+    pub estimated_row_count:Option<usize>,
     ///default ordering of (columns, ASC | DESC)
     pub default_order:HashMap<String, bool>,
 }
@@ -368,7 +369,7 @@ impl Tab{
             fields:fields,
             logo:None,
             icon:None,
-            page_size:None,
+            estimated_row_count: table.estimated_row_count,
             default_order:HashMap::new(),
         }
     }
@@ -392,7 +393,7 @@ impl Tab{
             fields:fields,
             logo:None,
             icon:None,
-            page_size:None,
+            estimated_row_count: table.estimated_row_count,
             default_order:HashMap::new(),
         }
     }
@@ -414,7 +415,7 @@ impl Tab{
             fields:fields,
             logo:None,
             icon:None,
-            page_size:None,
+            estimated_row_count: table.estimated_row_count,
             default_order:HashMap::new(),
         }
     }
@@ -437,7 +438,7 @@ impl Tab{
             fields:fields,
             logo:None,
             icon:None,
-            page_size:None,
+            estimated_row_count: ext.estimated_row_count,
             default_order:HashMap::new(),
         }
     }
@@ -458,7 +459,7 @@ impl Tab{
             fields:fields,
             logo:None,
             icon:None,
-            page_size:None,
+            estimated_row_count: has_many.estimated_row_count,
             default_order:HashMap::new(),
         }
     }    
@@ -480,7 +481,7 @@ impl Tab{
             fields:fields,
             logo:None,
             icon:None,
-            page_size:None,
+            estimated_row_count: has_many.estimated_row_count,
             default_order:HashMap::new(),
         }
     }
@@ -553,6 +554,9 @@ impl Tab{
                 tabs.push(Tab::from_has_many_table(refing_table, table, all_tables));
             }
         }
+        tabs.sort_by(|a,b| 
+            b.estimated_row_count.cmp(&a.estimated_row_count)
+            );
         tabs
     }
     
