@@ -106,7 +106,7 @@ impl FromRange for iq::Range{
 		match *self{
 			iq::Range::Page(ref page) => {
 				let limit = page.page_size;
-				let offset = page.page_size * page.page_size;
+				let offset = page.page * page.page_size;
 				Range{
 					limit: Some(limit as usize),
 					offset: Some(offset as usize),

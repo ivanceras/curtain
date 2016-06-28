@@ -517,7 +517,7 @@ fn retrieve_data_from_direct_tabs(context: &mut Context, main_table: &Table,
         };
         let mut query = build_query(&main_table, &table, &main_with_focused_filter, rest_vquery);
         let debug = query.debug_build(context.db().unwrap());
-        println!("debug sql: {}", debug);
+        println!("direct lookup debug sql: {}", debug);
         match query.retrieve(context.db().unwrap()){
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result, &table.complete_name());
@@ -763,7 +763,7 @@ fn create_on_filter(main_table: &Table, table: &Table)->Filter{
 			right: Operand::ColumnName(ColumnName::from_str(&fk)),
 		};
 		let filter = Filter{
-			connector: Connector::And,
+			connector: Connector::Or,//TODO: need more work, should have for each column
 			condition: condition,
 			sub_filters: vec![],
 		};
@@ -848,6 +848,13 @@ impl DaoState{
 pub struct TableDao{
 	table: String,
 	dao_list: Vec<DaoState>,
+    /// the page of the current fetch
+    page: Option<usize>,
+    /// page size of this fetch
+    page_size: Option<usize>,
+    /// the total number of items
+    /// of this query, disregarding the page_size limit
+    total:Option<usize>,
 } 
 
 
@@ -857,6 +864,9 @@ impl TableDao{
 		TableDao{
 			table: table_name.to_owned(),
 			dao_list: DaoState::from_dao_result(dao_result),
+            page: dao_result.page,
+            page_size: dao_result.page_size,
+            total: dao_result.total,
 		}
 	}
 }

@@ -72,8 +72,13 @@ pub struct Field{
     /// is the field mandatory for the user to fill up., derived from  not_null is colum
     /// intel tag:@Required/@Mandatory
     pub is_mandatory:bool,
+
     ///ordering of the fields, when displayed on the UI
     pub seq_no:u32,
+
+    /// marks the field as non-significant but has other uses such as auditing
+    /// ie. the updated, created, updated_by, created_by columns are used in auditing of records, but not so very important in daily usage
+    pub is_auxilliary: bool,
     /// should be same line or no
     pub is_same_line:bool,
     /// determine if the field should be displayed or not
@@ -86,7 +91,7 @@ pub struct Field{
     pub is_readonly:bool,
     ///whether or not possible matching values will be displayed while the user is typing
     pub is_autocomplete:bool,
-    
+   
     /// a dyanmic code to determine whether this field will be displayed or not
     /// example $active == true
     pub display_logic:Option<String>,
@@ -120,6 +125,7 @@ impl Field{
             include_in_search:column.is_unique,
             is_mandatory:column.is_primary || column.is_unique,
             seq_no:0,
+            is_auxilliary:false,
             is_same_line:false,
             is_displayed:true,
             is_readonly:false,
@@ -128,14 +134,14 @@ impl Field{
             display_length:None, 
             default_value:None,
         };
-        field.update_field_info(column)
+        field.update_field_info(column, table)
     }
     
     /// TODO: If this column refers to a foreign column, the column name will be the condensed table name
     pub fn from_has_one_column(column:&Column, table:&Table, has_one:&Table, tables:&Vec<Table>)->Field{
         let complete_name = format!("{}.{}",table.complete_name(),column.name);
         let mut field = Field{
-            name:has_one.condensed_displayname(table),
+            name: column.clean_lookupname(table,has_one),//has_one.condensed_displayname(table),
             column:column.name.clone(),
             complete_name: complete_name,
             is_keyfield:column.is_primary,
@@ -149,6 +155,7 @@ impl Field{
             include_in_search:column.is_unique,
             is_mandatory:column.is_primary || column.is_unique,
             seq_no:0,
+            is_auxilliary:false,
             is_same_line:false,
             is_displayed:true,
             is_readonly:false,
@@ -157,11 +164,11 @@ impl Field{
             display_length:None, 
             default_value:None,
         };
-        field.update_field_info(column)
+        field.update_field_info(column, table)
     }
     
 
-    fn update_field_info(mut self, column:&Column)->Field{
+    fn update_field_info(mut self, column:&Column, table: &Table)->Field{
         match column.name.as_ref(){
             "client" =>{
                     println!("client matched...");
@@ -170,6 +177,7 @@ impl Field{
                     self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = true;
+                    self.is_auxilliary = false;
                     self
                 },
             "organization" =>{
@@ -178,6 +186,7 @@ impl Field{
                     self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = true;
+                    self.is_auxilliary = false;
                     self
                 },
 
@@ -188,6 +197,7 @@ impl Field{
                     self.is_displayed = true;
                     self.display_length = Some(20);
                     self.is_readonly = false;
+                    self.is_auxilliary = false;
                     self
                 },
             "value" =>{
@@ -197,6 +207,7 @@ impl Field{
                     self.is_displayed = true;
                     self.display_length = Some(20);
                     self.is_readonly = false;
+                    self.is_auxilliary = false;
                     self
                 },
             "code" =>{
@@ -206,6 +217,7 @@ impl Field{
                     self.is_displayed = true;
                     self.display_length = Some(20);
                     self.is_readonly = false;
+                    self.is_auxilliary = false;
                     self
                 },
             "description" =>{
@@ -215,6 +227,7 @@ impl Field{
                     self.is_displayed = true;
                     self.display_length = Some(100);
                     self.is_readonly = false;
+                    self.is_auxilliary = false;
                     self
                 },
             "active" =>{
@@ -224,6 +237,7 @@ impl Field{
                     self.is_displayed = true;
                     self.display_length = Some(100);
                     self.is_readonly = false;
+                    self.is_auxilliary = true;
                     self
                 },
             "created" =>{
@@ -233,6 +247,7 @@ impl Field{
                     self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = true;
+                    self.is_auxilliary = true;
                     self
                 },
             "created_by" =>{
@@ -242,6 +257,7 @@ impl Field{
                     self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = true;
+                    self.is_auxilliary = true;
                     self
                 },
             "updated" =>{
@@ -251,6 +267,7 @@ impl Field{
                     self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = true;
+                    self.is_auxilliary = true;
                     self
                 },
             "updated_by" =>{
@@ -260,6 +277,7 @@ impl Field{
                     self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = true;
+                    self.is_auxilliary = true;
                     self
                 },
             _ => {
@@ -270,6 +288,9 @@ impl Field{
                         self.is_displayed =true;
                         self.display_length = Some(20);
                         self.is_readonly = false;
+                        self.is_auxilliary = false;
+                        self.info = Some("This is a unique column, but uniques are given with lower significance".to_string());
+
                         self
                     }
                     else if column.is_primary{
@@ -279,15 +300,60 @@ impl Field{
                         self.is_displayed = false;
                         self.display_length = Some(20);
                         self.is_readonly = false;
+                        self.is_auxilliary = false;
+                        self.info = Some("This is a primary field".to_string());
                         self
                     }
                     else{
-                        self.is_significant = false;
-                        self.seq_no = 1000;
-                        self.is_displayed =true;
-                        self.display_length = Some(20);
-                        self.is_readonly = false;
-                        self
+                        if column.name == table.name{
+                            self.is_significant = true;
+                            self.significance_priority = Some(1);
+                            self.seq_no = 1;
+                            self.is_displayed = true;
+                            self.display_length = Some(20);
+                            self.is_readonly = false;
+                            self.is_auxilliary = false;
+                            self.info = Some ("This is significant field because it pertains to the table".to_string());
+                            self
+                        }
+                        else if table.name.contains(&column.name){
+                            self.is_significant = true;
+                            self.significance_priority = Some(15) ;
+                            self.seq_no = 15;
+                            self.display_length = Some(20);
+                            self.is_readonly = false;
+                            self.is_auxilliary = false;
+                            self.info = Some("This is significant because this field pertain to the table".to_string());
+                            self
+                        }
+                        else if column.name.contains(&table.name){
+                            self.is_significant = true;
+                            self.significance_priority  = Some(19);
+                            self.seq_no = 19;
+                            self.display_length = Some(20);
+                            self.is_readonly = false;
+                            self.is_auxilliary = false;
+                            self.info = Some("Alright, this is a long column and is recognized as significant".to_string());
+                            self
+                        }
+                        else if column.name.contains("name"){
+                            self.is_significant = true;
+                            self.significance_priority = Some (500);
+                            self.seq_no = 500;
+                            self.is_readonly = false;
+                            self.is_auxilliary = false;
+                            self.info = Some("If no other significant columns, then this will do".to_string());
+                            self
+                        }
+                        else{ 
+                            self.is_significant = false;
+                            self.seq_no = 1000;
+                            self.is_displayed =true;
+                            self.display_length = Some(20);
+                            self.is_readonly = false;
+                            self.is_auxilliary = false;
+                            self
+                        }
                     }
             }
         } 

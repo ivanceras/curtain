@@ -89,7 +89,7 @@ impl AfterMiddleware for CORS {
 
 fn get_server_port() -> u16 {
     let port_str = env::var("PORT").unwrap_or(String::new());
-    FromStr::from_str(&port_str).unwrap_or(8181)
+    FromStr::from_str(&port_str).unwrap_or(3224)
 }
 
 
