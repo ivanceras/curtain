@@ -230,12 +230,29 @@ impl Field{
                     self.is_auxilliary = false;
                     self
                 },
+            "info" =>{
+                    self.is_significant = false;
+                    self.is_displayed = true;
+                    self.seq_no = 500;
+                    self.display_length = Some(250);
+                    self.is_readonly = false;
+                    self.is_auxilliary = false;
+                    self
+                },
+            "data" =>{
+                    self.is_significant = false;
+                    self.is_displayed = true;
+                    self.display_length = Some(250);
+                    self.is_readonly = false;
+                    self.is_auxilliary = false;
+                    self
+                },
             "active" =>{
                     self.is_significant = false;
                     self.significance_priority = None;
                     self.seq_no = 240;
                     self.is_displayed = true;
-                    self.display_length = Some(100);
+                    self.display_length = Some(1);
                     self.is_readonly = false;
                     self.is_auxilliary = true;
                     self
