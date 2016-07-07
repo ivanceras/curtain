@@ -13,6 +13,7 @@ use rustorm::database::Database;
 use rustorm::database::DatabaseDev;
 use std::sync::{Arc, RwLock};
 use error::ServiceError;
+use rustc_serialize::json;
 
 
 pub struct GlobalPools{
@@ -292,7 +293,7 @@ pub fn http_reset_cache(req: &mut Request) -> IronResult<Response>{
 	let mut context = Context::new(req);
 	match context.reset_cache(){
 		Ok(()) => {
-			Ok(Response::with((Status::Ok, "OK")))
+			Ok(Response::with((Status::Ok, json::encode(&"OK").unwrap())))
 		},
 		Err(_) => Ok(Response::with((Status::BadRequest, "Something went wrong")))
 	}
