@@ -61,6 +61,7 @@ fn main() {
     router.get("/lookup_data/:main_table", lookup_service::lookup_http::http_get_lookup_data);
     router.get("/lookup_tabs/:main_table", lookup_service::lookup_http::http_get_lookup_tabs);//get the lookup tabs for each lookup on this main_table
     router.delete("/cache", global::http_reset_cache);
+    router.get("/connection", global::http_can_db_url_connect);
 
     let mut middleware = Chain::new(router);
     middleware.link(State::<GlobalPools>::both(GlobalPools::new()));

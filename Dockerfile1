@@ -1,0 +1,39 @@
+FROM postgres:9.6
+
+ENV HOME /home/curtain/
+
+
+ENV DATABASE_URL postgres://postgres:p0stgr3s@45.55.7.231:5432/bazaar_v7
+
+ENV PORT 3224
+
+WORKDIR /home/curtain/
+
+ADD target/release/iron_curtain /home/curtain/
+
+ADD build /home/build
+
+ADD build/.pgpass /root/
+
+RUN chmod 0600 /root/.pgpass
+
+USER postgres
+
+RUN /docker-entrypoint.sh
+
+#RUN service postgresql start
+
+RUN service postgresql start \
+    && sleep 10 \
+#    && psql --command "CREATE USER postgres WITH SUPERUSER PASSWORD 'p0stgr3s';" \
+    && psql --command "CREATE DATABASE mock with encoding 'utf8'"
+
+WORKDIR /home/build/mockdata
+
+RUN sh reimport.sh
+
+EXPOSE 3224
+
+CMD ["/home/curtain/iron_curtain"]
+
+

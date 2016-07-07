@@ -94,29 +94,33 @@ impl GlobalPools{
 		}
 	}
     /// cache this window values to this db_url
-	pub fn cache_windows(&mut self, db_url: &str, windows: Vec<Window>){
+	pub fn cache_windows(&mut self, db_url: &str, windows: Vec<Window>)->Result<(),DbError>{
 		if self.has_cache(db_url) {
 			let mut cache =  self.cache_map.remove(db_url).unwrap();
 			cache.set_windows(windows);
 			self.cache_map.insert(db_url.to_owned(), cache);
+            Ok(())
 		}
 		else{
-			let mut cache = Cache::new(db_url);
+			let mut cache = try!(Cache::new(db_url));
 			cache.set_windows(windows);
 			self.cache_map.insert(db_url.to_owned(), cache);
+            Ok(())
 		}
     }
 
 
-	pub fn cache_tables(&mut self, db_url: &str, tables: Vec<Table>){
+	pub fn cache_tables(&mut self, db_url: &str, tables: Vec<Table>)->Result<(),DbError>{
 		if self.has_cache(db_url){
 			let mut cache = self.cache_map.remove(db_url).unwrap();
 			cache.set_tables(tables);
 			self.cache_map.insert(db_url.to_owned(), cache);
+            Ok(())
 		}else{
-			let mut cache = Cache::new(db_url);
+			let mut cache = try!(Cache::new(db_url));
 			cache.set_tables(tables);
 			self.cache_map.insert(db_url.to_owned(), cache);
+            Ok(())
 		}
 	}
 
@@ -135,13 +139,13 @@ pub struct Cache{
 
 impl Cache{
 	
-	fn new(db_url:&str)->Self{
-		let pool = ManagedPool::init(db_url,10).unwrap();
-		Cache{
-			managed_pool: pool,
-			windows: None,
-			tables: None,
-		}
+	fn new(db_url:&str)->Result<Self,DbError>{
+		let pool = try!(ManagedPool::init(db_url,10));
+        Ok(Cache{
+            managed_pool: pool,
+            windows: None,
+            tables: None,
+        })
 	}
 
 	fn set_windows(&mut self, windows: Vec<Window>){
@@ -240,7 +244,7 @@ impl Context{
 		}
 		else{
 			{// this is important to finish scope of arc and allow further write/read
-				let cache = Cache::new(&self.db_url);
+				let cache = try!(Cache::new(&self.db_url));
 				let ref mut globals = *self.arc.write().unwrap();
 				let db_url = self.db_url.clone();
 				globals.cache_map.insert(db_url.clone(), cache);
@@ -297,4 +301,13 @@ pub fn http_reset_cache(req: &mut Request) -> IronResult<Response>{
 		},
 		Err(_) => Ok(Response::with((Status::BadRequest, "Something went wrong")))
 	}
+}
+
+pub fn http_can_db_url_connect(req: &mut Request)-> IronResult<Response>{
+    let mut context = Context::new(req);
+	let pool = ManagedPool::init(&context.db_url,1);
+    match pool{
+        Ok(pool) => Ok(Response::with((Status::Ok, json::encode(&"OK").unwrap()))),
+        Err(e) => Ok(Response::with((Status::Ok, json::encode(&"Unable to connect DB").unwrap())))
+    }
 }

@@ -1,18 +1,61 @@
 FROM ubuntu:14.04
 
-ENV HOME /home/curtain/
+## Install postgresql
+
+RUN apt-get update
+
+RUN apt-get install -y --force-yes postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3
+
+USER postgres
+
+RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
+
+RUN echo "listen_addresses='*'" >> /etc/postgresql/9.3/main/postgresql.conf
 
 
-ENV DATABASE_URL postgres://postgres:p0stgr3s@45.55.7.231:5432/bazaar_v7
+RUN service postgresql start &&\
 
-ENV PORT 3224
+    psql --command "ALTER USER postgres WITH PASSWORD 'p0stgr3s';" &&\
 
-WORKDIR /home/curtain/
+    psql --command "CREATE DATABASE mock WITH OWNER postgres;"
+
+USER root
 
 ADD target/release/iron_curtain /home/curtain/
 
-EXPOSE 3224
+ADD build /home/build
 
-CMD ["/home/curtain/iron_curtain"]
+ADD build/.pgpass /root/
 
+RUN chmod 0600 /root/.pgpass
 
+## Import Data
+
+WORKDIR /home/build/mockdata
+
+RUN service postgresql start && sh reimport.sh
+
+# For curtain-elm UI
+# Install Nginx
+RUN \
+  apt-get update && \
+  apt-get install -y nginx && \
+  rm -rf /var/lib/apt/lists/* && \
+  echo "\ndaemon off;" >> /etc/nginx/nginx.conf && \
+  chown -R www-data:www-data /var/lib/nginx
+
+RUN rm /etc/nginx/sites-enabled/default
+
+RUN cp /home/build/curtain-elm/build/curtain-elm.conf /etc/nginx/sites-available/
+
+RUN ln -s /etc/nginx/sites-available/curtain-elm.conf /etc/nginx/sites-enabled/curtain-elm.conf
+
+RUN chmod 755 -R /home/build/curtain-elm/build/
+
+ADD run.sh /home/
+
+RUN chmod u+x /home/run.sh
+
+EXPOSE 80 5432 3224
+
+CMD /home/run.sh
