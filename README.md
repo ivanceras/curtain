@@ -6,13 +6,31 @@ A smart data editing tool for non-programmers.
 
 Long:
 
-The UI is created using the meta data information of tables and their foreign key relationships. If a certain record in a table refer to a foreign record in some other table, instead of displaying the foreign key, the recognizable record is displayed.
+The UI is created using the meta data information of tables and their foreign key relationships. If a certain record in a table refer to a foreign record in some other table, instead of displaying the foreign key value, a derived recognizable representation of the referenced record will be displayed.
 
 The project even goes farther by displaying the pertaining details of record in focused.
 If you click on a certain product, the list of its category, orders, reviews, photos will also be implicitly displayed as its detail.
  
 
+As in our demo database, setting a price of a product with multiple currency will be something like
+
+```sql
+CREATE TABLE product
+(
+  product_id uuid ..,
+  name character varying
+  description character varying,
+  price double precision,
+  currency_id uuid
+  ....
+  CONSTRAINT product_pkey PRIMARY KEY (product_id)
+);
+
+```
+It will be rendered like this.
+
 ![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/product.png)
+
 
 ## Online Demo
 
