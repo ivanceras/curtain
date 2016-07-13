@@ -5,7 +5,13 @@
 A smart data editing tool for non-programmers.
 
 Long:
- The UI is created using the meta data information of tables and their foreign key relationships. If a certain record in a table refer to a foreign record in some other table, instead of displaying the foreign key, the recognizable record is displayed.
+
+The UI is created using the meta data information of tables and their foreign key relationships. If a certain record in a table refer to a foreign record in some other table, instead of displaying the foreign key, the recognizable record is displayed.
+
+The project even goes farther by displaying the pertaining details of record in focused.
+If you click on a certain product, the list of its category, orders, reviews, photos will also be implicitly displayed as its detail.
+ 
+
 ![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/product.png)
 
 ## Online Demo
@@ -72,4 +78,6 @@ If you would like to support my project
 [Bountysource](https://www.bountysource.com/teams/ivanceras)
 [Gratipay](https://gratipay.com/~ivanceras/)
 [twitter: @ivanceras](https://twitter.com/ivanceras)
+
+Contact me: ivanceras[at]gmail.com ( I need a co-founder )
 
