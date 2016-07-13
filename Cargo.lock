@@ -13,7 +13,7 @@ dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustorm 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustorm 0.5.3",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -486,7 +486,6 @@ dependencies = [
 [[package]]
 name = "rustorm"
 version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.2.22 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",

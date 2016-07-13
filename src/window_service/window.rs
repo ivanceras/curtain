@@ -29,6 +29,7 @@ pub enum Reference{
 #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug)]
 #[derive(Clone)]
+#[derive(PartialEq)]
 pub struct Field{
     
     /// derived from column.name or colum.description.@Displayname(value)
@@ -391,6 +392,7 @@ impl Field{
 #[derive(RustcDecodable, RustcEncodable)]
 #[derive(Debug)]
 #[derive(Clone)]
+#[derive(PartialEq)]
 pub struct Tab{
     /// derive from table.displayname()
     pub name:String,
@@ -409,6 +411,8 @@ pub struct Tab{
     /// there is no such thing as (has_one + indirect)
     pub is_direct:bool,
 	pub linker_table: Option<String>, /// when it is not an indirect table, a linker table must be specified
+    pub linker_column: Option<String>, /// which columns the linker table derived from
+    pub linker_column_display_name: Option<String>, /// display name of the column
     pub description:Option<String>,
     /// more information of this tab
     pub info:Option<String>,
@@ -445,6 +449,8 @@ impl Tab{
             is_has_many:false,
             is_direct:false,
 			linker_table: None,
+            linker_column: None,
+            linker_column_display_name: None,
             description:table.comment.clone(),
             info:None,
             table:table.name.clone(),
@@ -469,6 +475,8 @@ impl Tab{
             is_has_many:false,
             is_direct:false,
 			linker_table: None,
+            linker_column: None,
+            linker_column_display_name: None,
             description:table.comment.clone(),
             info:None,
             table:table.name.clone(),
@@ -481,27 +489,8 @@ impl Tab{
         }
     }
     
-    pub fn from_has_one_table(column:&Column, table:&Table, all_tables:&Vec<Table>)->Tab{
-        let fields:Vec<Field> = Self::derive_fields(table, all_tables);
-        Tab{
-            name:column.condense_name(),
-            is_owned: table.is_owned_or_semi_owned(all_tables),
-            is_extension:false,
-            is_has_one:true,
-            is_has_many:false,
-            is_direct:true,
-			linker_table: None,
-            description:table.comment.clone(),
-            info:None,
-            table:table.name.clone(),
-            schema:table.schema.clone(),
-            fields:fields,
-            logo:None,
-            icon:None,
-            estimated_row_count: table.estimated_row_count,
-            default_order:HashMap::new(),
-        }
-    }
+
+
     /// derive an extension tab from_table, do not do recursion of course
     pub fn from_ext_table(ext:&Table, from_table:&Table, all_tables:&Vec<Table>)->Tab{
         let fields:Vec<Field> = Self::derive_fields(ext, all_tables);
@@ -514,6 +503,8 @@ impl Tab{
             is_has_many:false,
             is_direct:false,
 			linker_table: None,
+            linker_column: None,
+            linker_column_display_name: None,
             description:ext.comment.clone(),
             info:None,
             table:ext.name.clone(),
@@ -525,7 +516,7 @@ impl Tab{
             default_order:HashMap::new(),
         }
     }
-    pub fn from_has_many_table(has_many:&Table, table:&Table, all_tables:&Vec<Table>)->Tab{
+    pub fn from_has_many_table(has_many:&Table, table:&Table, all_tables:&Vec<Table>, via_column:&Column)->Tab{
         let fields:Vec<Field> = Self::derive_fields(has_many, all_tables);
         Tab{
             name:has_many.condensed_displayname(table),
@@ -535,6 +526,8 @@ impl Tab{
             is_has_many:true,
             is_direct:true,
 			linker_table: None,
+            linker_column: Some(via_column.name.to_owned()),
+            linker_column_display_name: Some(via_column.displayname()),
             description:has_many.comment.clone(),
             info:None,
             table:has_many.name.clone(),
@@ -547,7 +540,7 @@ impl Tab{
         }
     }    
     
-    pub fn from_has_many_indirect_table(has_many:&Table, linker_table:&Table, all_tables:&Vec<Table>)->Tab{
+    pub fn from_has_many_indirect_table(has_many:&Table, linker_table:&Table, all_tables:&Vec<Table>, via_column: &Column)->Tab{
         let fields:Vec<Field> = Self::derive_fields(has_many, all_tables);
         Tab{
             name:has_many.condensed_displayname(linker_table),
@@ -557,6 +550,8 @@ impl Tab{
             is_has_many:true,
             is_direct:false,
 			linker_table: Some(linker_table.complete_name()),
+            linker_column: Some(via_column.name.to_owned()),
+            linker_column_display_name: Some(via_column.displayname()),
             description:has_many.comment.clone(),
             info:None,
             table:has_many.name.clone(),
@@ -632,9 +627,9 @@ impl Tab{
     fn derive_has_many_tabs(table:&Table, ext_tables:&Vec<&Table>, all_tables:&Vec<Table>)->Vec<Tab>{
         let mut tabs = Vec::new();
         // all fields of has_many tables will be listed on the window
-        for (refing_table, column) in table.referring_tables(all_tables){
+        for (refing_table, via_column) in table.referring_tables(all_tables){
             if !refing_table.is_linker_table() && !ext_tables.contains(&refing_table){
-                tabs.push(Tab::from_has_many_table(refing_table, table, all_tables));
+                tabs.push(Tab::from_has_many_table(refing_table, table, all_tables, via_column));
             }
         }
         tabs.sort_by(|a,b| 
@@ -647,10 +642,31 @@ impl Tab{
     fn derive_has_many_indirect_tabs(table:&Table, all_tables:&Vec<Table>)->Vec<Tab>{
         let mut tabs = Vec::new();
         // all fields of has_many tables will be listed on the window
-        for (has_many, linker_table) in table.indirect_referring_tables(all_tables){
-            tabs.push(Tab::from_has_many_indirect_table(has_many, linker_table, all_tables));
+        for (has_many, linker_table, via_column) in table.indirect_referring_tables(all_tables){
+            tabs.push(Tab::from_has_many_indirect_table(has_many, linker_table, all_tables, via_column));
         }
         tabs
+    }
+
+    /// check if this tab is in the tab list contain the same table name
+    fn has_conflict(&self, all_tabs:&Vec<Tab>)->bool{
+        for tab in all_tabs{
+            if tab != self{
+                if tab.table == self.table{
+                    return true
+                }
+            }
+        } 
+        false
+    }
+
+    fn rename_conflicted(&self)->Self{
+        let mut clone = self.clone();
+        assert!(self.linker_column_display_name.is_some());
+        if let Some(ref linker_column) = self.linker_column_display_name{
+            clone.name = format!("{}({})", self.name, linker_column);
+        }
+        clone
     }
     
     
@@ -689,6 +705,7 @@ impl Window{
         let ext_tabs = Tab::derive_ext_tabs(table, all_tables);
         let has_many_tabs = Tab::derive_has_many_tabs(table, &ext_tables, all_tables);
         let has_many_indirect_tabs = Tab::derive_has_many_indirect_tabs(table, all_tables);
+        let (has_many_tabs,has_many_indirect_tabs) = Self::correct_has_many_tabs(&has_many_tabs, &has_many_indirect_tabs);
         Window{
             name: table.displayname(),
             description: table.comment.clone(),
@@ -716,6 +733,34 @@ impl Window{
             has_many_indirect_tabs: vec![],
         }
     }
+
+
+    /// correction names of tabs when there are more than 1 tabs that is referred by different columns of the table
+    /// i.e curreny Tab will have exchange_rate (from_currency) and (to_currency), with both the same tab name "Exchange Rate"
+    /// These 2 should be named "Exchange Rate (From Currency)" and "Exchange Rate( To Currency)" respectively
+    /// in most cases, has_many and has_many_indirect will be merged in 1 tab group,
+    /// checking of duplicate names should include both list
+    fn correct_has_many_tabs(has_many_tabs: &Vec<Tab>, has_many_indirect_tabs: &Vec<Tab>)->(Vec<Tab>, Vec<Tab>){
+        println!("Correcting tabs..");
+        let mut merged_tabs = vec![]; 
+        merged_tabs.extend_from_slice(has_many_tabs);
+        merged_tabs.extend_from_slice(has_many_indirect_tabs);
+        
+        let corrected_has_many = has_many_tabs.into_iter().map(
+            |t| if t.has_conflict(&merged_tabs){
+                t.rename_conflicted()
+            }else{ t.clone() }
+        ).collect();
+
+        let corrected_has_many_indirect = has_many_indirect_tabs.into_iter().map(
+            |t| if t.has_conflict(&merged_tabs){
+                t.rename_conflicted()
+            }else{ t.clone() }
+        ).collect();
+
+        (corrected_has_many, corrected_has_many_indirect)
+    }
+
     
 }
 

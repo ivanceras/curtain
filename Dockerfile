@@ -6,6 +6,9 @@ RUN apt-get update
 
 RUN apt-get install -y --force-yes postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3
 
+ADD build /home/build
+
+
 USER postgres
 
 RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
@@ -13,21 +16,21 @@ RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.co
 RUN echo "listen_addresses='*'" >> /etc/postgresql/9.3/main/postgresql.conf
 
 
+
 RUN service postgresql start &&\
 
-    psql --command "ALTER USER postgres WITH PASSWORD 'p0stgr3s';" &&\
-
-    psql --command "CREATE DATABASE mock WITH OWNER postgres;"
+    psql -f /home/build/setup_postgres_user.sql
+ 
 
 USER root
 
-ADD target/release/iron_curtain /home/curtain/
-
-ADD build /home/build
 
 ADD build/.pgpass /root/
 
 RUN chmod 0600 /root/.pgpass
+
+ADD target/release/iron_curtain /home/curtain/
+
 
 ## Import Data
 

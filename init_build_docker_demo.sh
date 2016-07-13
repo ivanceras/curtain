@@ -12,10 +12,19 @@ git clone --depth 1 --branch master https://github.com/ivanceras/curtain-elm bui
 
 . ./build/mockdata/local_db.sh
 
-echo "localhost:5432:*:postgres:p0stgr3s" > build/.pgpass
+echo "$HOST:$PORT:*:$USER:$PASSWORD" > build/.pgpass
 
-sudo docker build -t curtain .
-sudo docker run -p 8080:80 -p 3224:3224 -p 5433:5432 -t curtain
+if [ $USER = "postgres" ]; then
+    echo "ALTER USER $USER WITH PASSWORD '$PASSWORD';" > build/setup_postgres_user.sql
+else
+    echo "CREATE USER $USER WITH SUPERUSER PASSWORD '$PASSWORD';" > build/setup_postgres_user.sql
+fi
+
+echo "CREATE DATABASE $DB WITH OWNER $USER;" >> build/setup_postgres_user.sql
+
+
+docker build -t curtain .
+docker run -p 8080:80 -p 3224:3224 -t curtain
 
 
 

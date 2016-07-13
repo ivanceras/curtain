@@ -88,7 +88,6 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 		Some(ref query) => query.clone(),
 			None => Query::new()
 	};
-	println!("----->>> {:#?}", mquery);
 	let main_table_name = main_table.to_table_name();
 	mquery.enumerate_from_table(&main_table_name);
 	mquery.from(&main_table.clone());
@@ -96,7 +95,6 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
         mquery.set_limit(config::default_page_size);
     }
 	let main_debug = mquery.debug_build(context.db().unwrap());
-	println!("MAIN debug sql: {}", main_debug);
 	let main_dao_result = {
 		let db = match context.db(){
 			Ok(db) => db,
@@ -107,7 +105,6 @@ fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_v
 				Err(e) => {return Err(ServiceError::from(e));}
 		}
 	};
-    println!("main dao result: {:#?}", main_dao_result);
     let main_table_dao = TableDao::from_dao_result(&main_dao_result, &main_table.complete_name());
     table_dao.push(main_table_dao);
     Ok(table_dao)
@@ -152,7 +149,6 @@ pub fn update_data(context: &mut Context, main_table: &str, updatable_data: &str
 	if updatable_data.trim().is_empty(){
 		return Err(ServiceError::from(ParamError::new("empty updatable data")));
 	}else{
-		println!("updatable_data: {}", updatable_data);
 		let changeset: Result<Vec<ChangeSet>, DecoderError> = json::decode(updatable_data);
 		match changeset{
 			Ok(changeset) => {
@@ -388,7 +384,7 @@ fn delete_records_in_direct_tables(context: &mut Context, main_table: &Table, da
 fn delete_records_in_linker_tables(context: &mut Context, main_table: &Table, dao: &Dao){
 	let all_tables = window_api::get_tables(context);
 	let indirect_tables = main_table.indirect_tables(&all_tables);
-	for (indirect, linker) in indirect_tables{
+	for (indirect, linker, via_column) in indirect_tables{
 		let filter = build_translated_filter(main_table, dao, &linker);
 		println!("indirect: {} linker: {}", indirect.complete_name(), linker.complete_name());
 		delete_dao_with_filter(context, linker, &filter);
@@ -421,7 +417,6 @@ fn delete_dao_with_filter(context: &mut Context, table: &Table, filters: &Vec<Fi
 	query.from(table);
 	query.add_filters(filters);
 	let debug = query.debug_build(context.db()?);
-	println!("debug: {}", debug);
 	query.execute(context.db()?)
 }
 
@@ -431,7 +426,6 @@ fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
     let mut query = Query::delete();
     query.from(table);
 	query.add_filters(&filters);
-    println!("debug delete: {}", query.debug_build(context.db()?));
     let result = query.execute(context.db()?);
     println!("result: {:?}", result);
     Ok(())
@@ -517,7 +511,6 @@ fn retrieve_data_from_direct_tabs(context: &mut Context, main_table: &Table,
         };
         let mut query = build_query(&main_table, &table, &main_with_focused_filter, rest_vquery);
         let debug = query.debug_build(context.db().unwrap());
-        println!("direct lookup debug sql: {}", debug);
         match query.retrieve(context.db().unwrap()){
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result, &table.complete_name());
@@ -552,7 +545,6 @@ fn retrieve_data_from_indirect_tabs(context: &mut Context, main_table: &Table,
         let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
 
         let debug = ind_query.debug_build(context.db().unwrap());
-        println!("indirect query debug sql: {}", debug);
         match ind_query.retrieve(context.db().unwrap()){
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result, &indirect_table.complete_name());

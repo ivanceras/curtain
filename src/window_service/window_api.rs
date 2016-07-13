@@ -223,8 +223,8 @@ fn window_tables(tables:&Vec<Table>)->Vec<Table>{
                             //println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
                         }
                     }
-                    for (has_many,linker) in t.indirect_referring_tables(tables){
-                        info!("\t has many INDIRECT: {}[{}], via {}",has_many.name, has_many.condensed_displayname(&t), linker.name);
+                    for (has_many,linker, via_column) in t.indirect_referring_tables(tables){
+                        info!("\t has many INDIRECT: {}[{}], via {} via column {}",has_many.name, has_many.condensed_displayname(&t), linker.name, via_column.name);
                     }
                 }
             }

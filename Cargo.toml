@@ -30,7 +30,7 @@ version = "0.1"
 
 [dependencies.rustorm]
 version = "^0.5"
-#path = "../rustorm"
+path = "../rustorm"
 #features = ["sqlite"]
 
 
