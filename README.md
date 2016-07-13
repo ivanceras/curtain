@@ -1,82 +1,75 @@
-#Curtain
+# Curtain
 
 [![Build Status](https://api.travis-ci.org/ivanceras/curtain.svg)](https://travis-ci.org/ivanceras/curtain)
 
-A data-only administration tool for postgresql, which understand relationship between tables through their foreign keys and display related data to the data in context.
+A smart data editing tool for non-programmers.
 
-Inspired by: Application Dictionary of Compiere, Adempiere, Openbravo.
+Long:
+ The UI is created using the meta data information of tables and their foreign key relationships. If a certain record in a table refer to a foreign record in some other table, instead of displaying the foreign key, the recognizable record is displayed.
+![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/product.png)
 
-## Vision
- - A data application that is easy to use even for non-programmers. This will be achieve by not using terms such as `primary keys`, `foreign keys` which are not easily understood by non programmers.
- - This will be achieve by inferring relationships between data
+## Online Demo
+
+[herokuapp demo](http://curtain-elm.herokuapp.com)
+
+[digital ocean demo](http://45.55.7.231:8080/)
+
+Data and schema of the database used in the demo can be found here [mockdata](https://github.com/ivanceras/mockdata) which was generated using mockaroo.com
 
 
-## Clients
-There are Work in progress clients 
+## Architecture
+  - Server side:
+   - rust
+   - iron
+   - rustorm
+   - postgresql
+  
+## Client implementation
+ 1. [Curtain-elm](https://github.com/ivanceras/curtain-elm) - early progress in elm implementation
+    ![](https://raw.githubusercontent.com/ivanceras/curtain-elm/master/screenshot.png)
 
-1. [curtain_ui](https://github.com/ivanceras/curtain_ui) - javascript implementation
+ 2. [curtain_ui](https://github.com/ivanceras/curtain_ui) - plain javascript implementation using mithril and material design
    ![](https://raw.githubusercontent.com/ivanceras/curtain_ui/master/screenshots/curtain_ui.png)
 
-   [Demo](http://curtain-ui.herokuapp.com/?/new) - Please don't flood the servers.
-
-
-2. [curtain_gtk](https://github.com/ivanceras/curtain_gtk) - gtk client (WIP) Doing [gtk-rs](https://github.com/gtk-rs/gtk) UI is not very ergonomic, and the projects is not yet matured.
+ 3. [curtain_gtk](https://github.com/ivanceras/curtain_gtk) - gtk client (WIP) Doing [gtk-rs](https://github.com/gtk-rs/gtk) UI is not very ergonomic, and the project is not yet matured.
     ![](https://raw.githubusercontent.com/ivanceras/curtain_gtk/master/screenshot/client_side.png)
 
+## Quick start local dockerize demo
 
-3. [curtain_elm](https://github.com/ivanceras/curtain-elm) - Early progress using elm implementation. Despite using simplistic framework, in javascript implementation, it gets realy hard to quickly grasp the original intent of the code that were previously written. As a programmer who jumps from multiple languages and frameworks, I had no problem jumping in between multiple rust projects. This is a different case for javascript projects. I'm giving elm a shot on this.
-4. 
-   ![](https://raw.githubusercontent.com/ivanceras/curtain-elm/master/screenshot.png)
-
-## Quick start installation
-
-Checkout the code and set a compatible nightly build. nightly-2015-12-26 is known to work.
-
+## Requirement:
+ - linux/osx
+ - cargo and rust installed
+ - libssl-dev installed
 
 ```sh
-
 git clone https://github.com/ivanceras/curtain
+
 cd curtain
-multirust override nightly-2015-12-26
-cargo run --release
+
+sh init_build_docker_demo.sh
 
 ```
-
-Curtain opens port [8181](https://github.com/ivanceras/curtain/blob/master/src/main.rs#L83) and the client is configured to use this port.
-
-```sh
-
-git clone https://github.com/ivanceras/curtain_ui
-cd curtain_ui
-python -m SimpleHttpServer
-
-```
-Python HttpServer opens on port 8000
-
-Navigate your browser to http://localhost:8000
-
-Click on `Connect to server` and supply the db_url of your database.
-db_url format is `postgres://user:password@host:port/db`
-
-You should be able to view your data on your database.
-If you want a sample data you can use the data provided by the sample [bazaar](https://github.com/ivanceras/bazaar).
-
-```sh
-
-git clone https://github.com/ivanceras/bazaar
-cd bazaar/scripts
-./setup.sh
-
-```
-
-### Support
-
-Curtain is part of my pet projects that I have been working on my spare time.
-[Rustorm](https://github.com/ivanceras/rustorm) is an ORM and serves as the core library on most of my projects.
+open browser to http://localhost:8080
 
 
+## What is working?
+Most of read operations of the database.
+
+## What is NOT working?
+ - Updating
+ - Deleting
+
+* The project is still very young. 
+
+
+
+
+## Inspiration
+Design is inspired by Openbravo, iDempiere/Adempiere, Compiere etc.
+
+
+If you would like to support my project
 [Bountysource](https://www.bountysource.com/teams/ivanceras)
-
 [Gratipay](https://gratipay.com/~ivanceras/)
-
 [twitter: @ivanceras](https://twitter.com/ivanceras)
+
