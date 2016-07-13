@@ -14,7 +14,7 @@ The project even goes farther by displaying the pertaining details of record in 
 If you click on a certain product, the list of its category, orders, reviews, photos will also be implicitly displayed as its detail.
  
 
-As in our demo database, setting a price of a product with multiple currency will be something like
+As in our demo database, setting a price of a [product](https://github.com/ivanceras/mockdata/blob/master/schema/product.sql) with multiple currency will be something like
 
 ```sql
 CREATE TABLE product
