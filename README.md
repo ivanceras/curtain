@@ -4,6 +4,8 @@
 
 A smart data editing tool for non-programmers.
 
+![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/curtain-elm.png)
+
 Long:
 
 The UI is created using the meta data information of tables and their foreign key relationships. If a certain record in a table refer to a foreign record in some other table, instead of displaying the foreign key value, a derived recognizable representation of the referenced record will be displayed.
