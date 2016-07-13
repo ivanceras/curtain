@@ -51,8 +51,7 @@ Data and schema of the database used in the demo can be found here [mockdata](ht
    - postgresql
   
 ## Client implementation
- 1. [Curtain-elm](https://github.com/ivanceras/curtain-elm) - early progress in elm implementation
-    ![](https://raw.githubusercontent.com/ivanceras/curtain-elm/master/screenshot.png)
+ 1. [Curtain-elm](https://github.com/ivanceras/curtain-elm) - This is the main client implemented in [elm](elm-lang.org)
 
  2. [curtain_ui](https://github.com/ivanceras/curtain_ui) - plain javascript implementation using mithril and material design
    ![](https://raw.githubusercontent.com/ivanceras/curtain_ui/master/screenshots/curtain_ui.png)
@@ -65,7 +64,8 @@ Data and schema of the database used in the demo can be found here [mockdata](ht
 ## Requirement:
  - linux/osx
  - cargo and rust installed
- - libssl-dev installed
+ - libssl-dev library installed
+ - docker installed
 
 ```sh
 git clone https://github.com/ivanceras/curtain
