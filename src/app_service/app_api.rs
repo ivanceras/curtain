@@ -10,10 +10,10 @@ use rustorm::dao::Dao;
 use rustorm::dao::DaoResult;
 use rustorm::table::Table;
 use rustorm::query::Equality;
-use rustorm::query::{Filter,Join, JoinType, Modifier, Condition, Operand, Connector};
-use rustorm::query::{TableName,ToTableName};
+use rustorm::query::{Filter, Join, JoinType, Modifier, Condition, Operand, Connector};
+use rustorm::query::{TableName, ToTableName};
 use rustorm::query::source::ToSourceField;
-use rustorm::query::column_name::{ToColumnName,ColumnName};
+use rustorm::query::column_name::{ToColumnName, ColumnName};
 use rustc_serialize::json;
 use std::collections::BTreeMap;
 use rustorm::dao::Value;
@@ -30,230 +30,283 @@ use rustc_serialize::json::DecoderError;
 use config;
 
 
-pub fn focused_record(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<Vec<TableDao>, ServiceError>{
-	let validator = DbElementValidator::from_context(context);
+pub fn focused_record(context: &mut Context,
+                      main_table: &str,
+                      url_query: &Option<String>)
+                      -> Result<Vec<TableDao>, ServiceError> {
+    let validator = DbElementValidator::from_context(context);
     println!("url query: {:?}", url_query);
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
-	let main_validated = main_table_filter.transform(context, &validator);
-	match main_validated{
-		Ok(main_validated) => {
-			let mut rest_validated = vec![];
-			for rest in rest_table_filter{
-				match rest.transform(context, &validator){
-					Ok(rtransformed) => {
-						rest_validated.push(rtransformed);
-					},
-				    Err(e) => ()
-				}
-			}
+    let main_validated = main_table_filter.transform(context, &validator);
+    match main_validated {
+        Ok(main_validated) => {
+            let mut rest_validated = vec![];
+            for rest in rest_table_filter {
+                match rest.transform(context, &validator) {
+                    Ok(rtransformed) => {
+                        rest_validated.push(rtransformed);
+                    }
+                    Err(e) => (),
+                }
+            }
             println!("main validated: {:#?}", main_validated);
-			let rest_data:Result<Vec<TableDao>, ServiceError> = retrieve_data_from_focused_dao(context, &main_validated, &rest_validated);
+            let rest_data: Result<Vec<TableDao>, ServiceError> =
+                retrieve_data_from_focused_dao(context, &main_validated, &rest_validated);
             rest_data
-		},
-		Err(e) => Err(ServiceError::from(e)) 
-	}
+        }
+        Err(e) => Err(ServiceError::from(e)), 
+    }
 }
 
-pub fn complex_query(context: &mut Context, main_table: &str, url_query: &Option<String>)->Result<Vec<TableDao>, ServiceError>{
-	let validator = DbElementValidator::from_context(context);
+pub fn complex_query(context: &mut Context,
+                     main_table: &str,
+                     url_query: &Option<String>)
+                     -> Result<Vec<TableDao>, ServiceError> {
+    let validator = DbElementValidator::from_context(context);
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
-	let main_validated = main_table_filter.transform(context, &validator);
-	match main_validated{
-		Ok(main_validated) => {
-			let mut rest_validated = vec![];
-			for rest in rest_table_filter{
-				match rest.transform(context, &validator){
-					Ok(rtransformed) => {
-						rest_validated.push(rtransformed);
-					},
-						Err(e) => ()
-				}
-			}
-			let rest_data:Result<Vec<TableDao>, ServiceError> = retrieve_main_data(context, &main_validated, &rest_validated);
+    let main_validated = main_table_filter.transform(context, &validator);
+    match main_validated {
+        Ok(main_validated) => {
+            let mut rest_validated = vec![];
+            for rest in rest_table_filter {
+                match rest.transform(context, &validator) {
+                    Ok(rtransformed) => {
+                        rest_validated.push(rtransformed);
+                    }
+                    Err(e) => (),
+                }
+            }
+            let rest_data: Result<Vec<TableDao>, ServiceError> =
+                retrieve_main_data(context, &main_validated, &rest_validated);
             rest_data
-		},
-		Err(e) => Err(ServiceError::from(e)) 
-	}
+        }
+        Err(e) => Err(ServiceError::from(e)), 
+    }
 }
 
 /// retrieve the window data for all tabs involved in this window
-fn retrieve_main_data(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)->Result<Vec<TableDao>, ServiceError>{
-	let main_table:Table = main_query.table.clone();
-	let main_window = match window_api::retrieve_window(context, &main_table.name){
-		Ok(main_window) => main_window,
-			Err(e) => {return Err(ServiceError::from(e));}
-	};
-	let mut table_dao = vec![];
-	let mut mquery: Query = match main_query.query{
-		Some(ref query) => query.clone(),
-			None => Query::new()
-	};
-	let main_table_name = main_table.to_table_name();
-	mquery.enumerate_from_table(&main_table_name);
-	mquery.from(&main_table.clone());
-    if mquery.get_range().limit.is_none(){
+fn retrieve_main_data(context: &mut Context,
+                      main_query: &ValidatedQuery,
+                      rest_vquery: &Vec<ValidatedQuery>)
+                      -> Result<Vec<TableDao>, ServiceError> {
+    let main_table: Table = main_query.table.clone();
+    let main_window = match window_api::retrieve_window(context, &main_table.name) {
+        Ok(main_window) => main_window,
+        Err(e) => {
+            return Err(ServiceError::from(e));
+        }
+    };
+    let mut table_dao = vec![];
+    let mut mquery: Query = match main_query.query {
+        Some(ref query) => query.clone(),
+        None => Query::new(),
+    };
+    let main_table_name = main_table.to_table_name();
+    mquery.enumerate_from_table(&main_table_name);
+    mquery.from(&main_table.clone());
+    if mquery.get_range().limit.is_none() {
         mquery.set_limit(config::default_page_size);
     }
-	let main_debug = mquery.debug_build(context.db().unwrap());
-	let main_dao_result = {
-		let db = match context.db(){
-			Ok(db) => db,
-			Err(e) => {return Err(ServiceError::from(e));}
-		};
-		match mquery.retrieve(db){
-			Ok(main_dao_result) => main_dao_result,
-				Err(e) => {return Err(ServiceError::from(e));}
-		}
-	};
+    let main_debug = mquery.debug_build(context.db().unwrap());
+    let main_dao_result = {
+        let db = match context.db() {
+            Ok(db) => db,
+            Err(e) => {
+                return Err(ServiceError::from(e));
+            }
+        };
+        match mquery.retrieve(db) {
+            Ok(main_dao_result) => main_dao_result,
+            Err(e) => {
+                return Err(ServiceError::from(e));
+            }
+        }
+    };
     let main_table_dao = TableDao::from_dao_result(&main_dao_result, &main_table.complete_name());
     table_dao.push(main_table_dao);
     Ok(table_dao)
 }
 
-fn retrieve_data_from_focused_dao(context: &mut Context, main_query: &ValidatedQuery, rest_vquery: &Vec<ValidatedQuery>)
-    -> Result<Vec<TableDao>, ServiceError> {
-	// all the other table dao will not be retrieved when there is no focused record on the main tab
+fn retrieve_data_from_focused_dao(context: &mut Context,
+                                  main_query: &ValidatedQuery,
+                                  rest_vquery: &Vec<ValidatedQuery>)
+                                  -> Result<Vec<TableDao>, ServiceError> {
+    // all the other table dao will not be retrieved when there is no focused record on the main tab
     // if there is a focused record, then the list of records in the main table will not be included
     let mut table_dao = vec![];
-	let main_table:Table = main_query.table.clone();
-	let window = match window_api::retrieve_window(context, &main_table.name){
-		Ok(window) => window,
-			Err(e) => {return Err(ServiceError::from(e));}
-	};
-	if let Some(main_tab) = window.main_tab{
-        match &main_query.focus_param{
-            &Some(ref focus_param) => { 
+    let main_table: Table = main_query.table.clone();
+    let window = match window_api::retrieve_window(context, &main_table.name) {
+        Ok(window) => window,
+        Err(e) => {
+            return Err(ServiceError::from(e));
+        }
+    };
+    if let Some(main_tab) = window.main_tab {
+        match &main_query.focus_param {
+            &Some(ref focus_param) => {
                 let focused_filter = focused_param_as_filter(&main_table, &focus_param);
-                let ext_tab_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &window.ext_tabs);
+                let ext_tab_dao = retrieve_data_from_direct_tabs(context,
+                                                                 &main_table,
+                                                                 &focused_filter,
+                                                                 rest_vquery,
+                                                                 &window.ext_tabs);
                 match ext_tab_dao {
                     Ok(ext_tab_dao) => table_dao.extend_from_slice(&ext_tab_dao),
-                    Err(e) => return Err(e)
+                    Err(e) => return Err(e),
                 }
-                let has_many_dao = retrieve_data_from_direct_tabs(context, &main_table, &focused_filter, rest_vquery, &window.has_many_tabs);
+                let has_many_dao = retrieve_data_from_direct_tabs(context,
+                                                                  &main_table,
+                                                                  &focused_filter,
+                                                                  rest_vquery,
+                                                                  &window.has_many_tabs);
                 has_many_dao.map(|dao| table_dao.extend_from_slice(&dao));
-                let indirect_dao = retrieve_data_from_indirect_tabs(context, &main_table, &focused_filter, rest_vquery, &window.has_many_indirect_tabs);
-                indirect_dao.map( |dao| table_dao.extend_from_slice(&dao));
+                let indirect_dao = retrieve_data_from_indirect_tabs(context,
+                                                                    &main_table,
+                                                                    &focused_filter,
+                                                                    rest_vquery,
+                                                                    &window.has_many_indirect_tabs);
+                indirect_dao.map(|dao| table_dao.extend_from_slice(&dao));
                 Ok(table_dao)
             }
-            &None => {
-                Err(ServiceError::new(&format!("no focused record specified")))
-            }
+            &None => Err(ServiceError::new(&format!("no focused record specified"))),
         }
-	}else{
-		Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
-	}
+    } else {
+        Err(ServiceError::new(&format!("no main tab for table {}", main_table.complete_name())))
+    }
 }
 
 
-pub fn update_data(context: &mut Context, main_table: &str, updatable_data: &str)->Result<(),ServiceError>{
+pub fn update_data(context: &mut Context,
+                   main_table: &str,
+                   updatable_data: &str)
+                   -> Result<(), ServiceError> {
     println!("received update data: {}", updatable_data);
-	if updatable_data.trim().is_empty(){
-		return Err(ServiceError::from(ParamError::new("empty updatable data")));
-	}else{
-		let changeset: Result<Vec<ChangeSet>, DecoderError> = json::decode(updatable_data);
-		match changeset{
-			Ok(changeset) => {
-				let window = window_api::retrieve_window(context, main_table);
-				match window{
-					Ok(window) => {
-						apply_data_changeset(context, &window, &changeset)?;
-						return Ok(()); 
-					},
-						Err(e) => {return Err(ServiceError::from(e));}
-				}
-			},
-				Err(e) => {
-					return Err(ServiceError::from(ParseError::new(&format!("{}",e))));
-				}
-		}
-	}
-	Ok(())
+    if updatable_data.trim().is_empty() {
+        return Err(ServiceError::from(ParamError::new("empty updatable data")));
+    } else {
+        let changeset: Result<Vec<ChangeSet>, DecoderError> = json::decode(updatable_data);
+        match changeset {
+            Ok(changeset) => {
+                let window = window_api::retrieve_window(context, main_table);
+                match window {
+                    Ok(window) => {
+                        apply_data_changeset(context, &window, &changeset)?;
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        return Err(ServiceError::from(e));
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(ServiceError::from(ParseError::new(&format!("{}", e))));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
 #[derive(Clone)]
-struct WindowTabTables{
+struct WindowTabTables {
     main_table: (Tab, Table),
     ext_tables: Vec<(Tab, Table)>,
     has_many_tables: Vec<(Tab, Table)>,
-    has_many_indirect: Vec<(Tab, Table,Table)>,// the last table arg is the linker table
+    has_many_indirect: Vec<(Tab, Table, Table)>, // the last table arg is the linker table
 }
 
-fn extract_window_tables(context: &mut Context, window: &Window) -> Result<WindowTabTables, DbError> {
-    if let Some(ref main_tab) = window.main_tab{
-        let main_table = match window_api::get_matching_table(context, &main_tab.table){
+fn extract_window_tables(context: &mut Context,
+                         window: &Window)
+                         -> Result<WindowTabTables, DbError> {
+    if let Some(ref main_tab) = window.main_tab {
+        let main_table = match window_api::get_matching_table(context, &main_tab.table) {
             Some(main_table) => main_table,
-            None => { return Err(DbError::new("no main table found"));}
+            None => {
+                return Err(DbError::new("no main table found"));
+            }
         };
         let mut ext_tables = vec![];
         let mut has_many_tables = vec![];
         let mut indirect_tables = vec![];
-        for ext_tab in &window.ext_tabs{
+        for ext_tab in &window.ext_tabs {
             let ext_table = window_api::get_matching_table(context, &ext_tab.table);
-            ext_table.map(|table| ext_tables.push( (ext_tab.clone(), table) ));
-        } 
-        for has_many_tab in &window.has_many_tabs{
+            ext_table.map(|table| ext_tables.push((ext_tab.clone(), table)));
+        }
+        for has_many_tab in &window.has_many_tabs {
             let has_many_table = window_api::get_matching_table(context, &has_many_tab.table);
-            has_many_table.map(|table| 
-                has_many_tables.push( (has_many_tab.clone(), table) )
-               );
+            has_many_table.map(|table| has_many_tables.push((has_many_tab.clone(), table)));
         }
-        for indirect in &window.has_many_indirect_tabs{
+        for indirect in &window.has_many_indirect_tabs {
             let indirect_table = window_api::get_matching_table(context, &indirect.table);
-            assert!(indirect.linker_table.is_some(), "There should be a linker here");
+            assert!(indirect.linker_table.is_some(),
+                    "There should be a linker here");
             let linker_table_name = indirect.linker_table.as_ref().unwrap();
-            let linker = match window_api::get_matching_table(context, &linker_table_name){
+            let linker = match window_api::get_matching_table(context, &linker_table_name) {
                 Some(linker) => linker,
-                None => return Err(DbError::new("linker table not found"))
+                None => return Err(DbError::new("linker table not found")),
             };
-            indirect_table.map( |table| indirect_tables.push( (indirect.clone(), table, linker) ));
+            indirect_table.map(|table| indirect_tables.push((indirect.clone(), table, linker)));
         }
-        let window_tables = WindowTabTables{
-                main_table: (main_tab.clone(), main_table),
-                ext_tables: ext_tables,
-                has_many_tables: has_many_tables,
-                has_many_indirect: indirect_tables,
+        let window_tables = WindowTabTables {
+            main_table: (main_tab.clone(), main_table),
+            ext_tables: ext_tables,
+            has_many_tables: has_many_tables,
+            has_many_indirect: indirect_tables,
         };
         Ok(window_tables)
-    }else{
+    } else {
         Err(DbError::new("No main tab"))
     }
 }
 
 /// for each table on this window, get their corresponding changeset and apply each changeset accordingly
-fn apply_data_changeset(context: &mut Context, window: &Window, changesets: &Vec<ChangeSet>) -> Result<(), DbError>{
-	println!("-->applying changeset {:?}",changesets);
-	let window_tables = match extract_window_tables(context, window){
-		Ok(window_tables) => {
-			let updated_inserts = apply_changeset_to_main_table(context, &window_tables.main_table, changesets);
-			match updated_inserts{
-				Ok(updated_inserts) => {
+fn apply_data_changeset(context: &mut Context,
+                        window: &Window,
+                        changesets: &Vec<ChangeSet>)
+                        -> Result<(), DbError> {
+    println!("-->applying changeset {:?}", changesets);
+    let window_tables = match extract_window_tables(context, window) {
+        Ok(window_tables) => {
+            let updated_inserts =
+                apply_changeset_to_main_table(context, &window_tables.main_table, changesets);
+            match updated_inserts {
+                Ok(updated_inserts) => {
                     println!("changeset to main table applied");
-				},
-				Err(e) => {
-					println!("There is something wrong applying changesets to main table: {}", e);
-				}
-			}
-			apply_changeset_to_direct_tables(context, &window_tables.main_table, &window_tables.ext_tables, changesets);
-			apply_changeset_to_indirect_tables(context, &window_tables.main_table, &window_tables.has_many_indirect, changesets);
-		},
-			Err(e) => {
-				return Err(DbError::new("no window tables"));
-			}
-	};
-	Ok(()) 
+                }
+                Err(e) => {
+                    println!("There is something wrong applying changesets to main table: {}",
+                             e);
+                }
+            }
+            apply_changeset_to_direct_tables(context,
+                                             &window_tables.main_table,
+                                             &window_tables.ext_tables,
+                                             changesets);
+            apply_changeset_to_indirect_tables(context,
+                                               &window_tables.main_table,
+                                               &window_tables.has_many_indirect,
+                                               changesets);
+        }
+        Err(e) => {
+            return Err(DbError::new("no window tables"));
+        }
+    };
+    Ok(())
 }
 
-/// only owned direct table will be updated on this place since 
+/// only owned direct table will be updated on this place since
 /// not owned direct table may have also been referenced somewhere at different context
-fn apply_changeset_to_direct_tables(context: &mut Context, main_table: &(Tab, Table), 
-        direct_tables: &Vec<(Tab, Table)>, changesets: &Vec<ChangeSet> ) -> Result<(), DbError> {
+fn apply_changeset_to_direct_tables(context: &mut Context,
+                                    main_table: &(Tab, Table),
+                                    direct_tables: &Vec<(Tab, Table)>,
+                                    changesets: &Vec<ChangeSet>)
+                                    -> Result<(), DbError> {
     println!("applying changeset to direct tables...");
-    for &(ref direct_tab, ref direct) in direct_tables{
+    for &(ref direct_tab, ref direct) in direct_tables {
         let changeset = changesets.find(&direct.complete_name());
-        if let Some(changeset) = changeset{
+        if let Some(changeset) = changeset {
             println!("direct changeset: {:#?}", changeset);
-        }else{
+        } else {
             println!("------------>>>> No direct changeset");
         }
     }
@@ -262,201 +315,227 @@ fn apply_changeset_to_direct_tables(context: &mut Context, main_table: &(Tab, Ta
 
 
 /// delete only upto the linker
-fn apply_changeset_to_indirect_tables(context: &mut Context, main_tab_table: &(Tab, Table),
-    indirect_tables: &Vec<(Tab, Table, Table)>, changesets: &Vec<ChangeSet> ) -> Result<(), DbError> {
-	let &(ref main_tab, ref main_table) = main_tab_table;
-	println!("---->>>>>>>> INDIRECT TABLES <<<<<<<--------");
-    println!("applying changeset to indirect tables..");    
-    for &(ref indirect_tab, ref indirect,ref linker) in indirect_tables{
+fn apply_changeset_to_indirect_tables(context: &mut Context,
+                                      main_tab_table: &(Tab, Table),
+                                      indirect_tables: &Vec<(Tab, Table, Table)>,
+                                      changesets: &Vec<ChangeSet>)
+                                      -> Result<(), DbError> {
+    let &(ref main_tab, ref main_table) = main_tab_table;
+    println!("---->>>>>>>> INDIRECT TABLES <<<<<<<--------");
+    println!("applying changeset to indirect tables..");
+    for &(ref indirect_tab, ref indirect, ref linker) in indirect_tables {
         let changeset = changesets.find(&indirect.complete_name());
-        if let Some(changeset) = changeset{
+        if let Some(changeset) = changeset {
             println!("indirect changeset: {:#?}", changeset);
-			for ref insert in &changeset.inserted{
-				//whatever is the primary key of this insert dao, use it in the record in the linker table
-				// this needs access to the parent record
-				insert_dao_to_linker(context, &main_table, indirect, linker, insert);
-			}
-			for ref delete in &changeset.deleted{
-			
-			}
-			for ref update in &changeset.updated{
-				
-			}
-        }else{
+            for ref insert in &changeset.inserted {
+                // whatever is the primary key of this insert dao, use it in the record in the linker table
+                // this needs access to the parent record
+                insert_dao_to_linker(context, &main_table, indirect, linker, insert);
+            }
+            for ref delete in &changeset.deleted {
+
+            }
+            for ref update in &changeset.updated {
+
+            }
+        } else {
             println!("----->>>No indirect changeset");
         }
     }
     Ok(())
 }
 
-fn insert_dao_to_linker(context: &mut Context, main_table: &Table, table: &Table, linker: &Table, insert: &DaoInsert){
-	
+fn insert_dao_to_linker(context: &mut Context,
+                        main_table: &Table,
+                        table: &Table,
+                        linker: &Table,
+                        insert: &DaoInsert) {
+
 }
 
 
-fn apply_changeset_to_main_table(context: &mut Context, main_tab_table: &(Tab, Table), 
-        changesets: &Vec<ChangeSet>) -> Result< Vec<DaoInsert> , DbError> {
-    println!("applying changeset to main table: {:?}",changesets);
+fn apply_changeset_to_main_table(context: &mut Context,
+                                 main_tab_table: &(Tab, Table),
+                                 changesets: &Vec<ChangeSet>)
+                                 -> Result<Vec<DaoInsert>, DbError> {
+    println!("applying changeset to main table: {:?}", changesets);
     let &(ref main_tab, ref main_table) = main_tab_table;
-    let changeset = changesets.find(&main_table.name);//TODO: should employ smarter matching 
-    println!("Finding change set for {} there is----->>> {:?}", &main_table.complete_name(),changeset);
-    let mut updated_inserts:Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
-    if let Some(changeset) = changeset{
+    let changeset = changesets.find(&main_table.name);//TODO: should employ smarter matching
+    println!("Finding change set for {} there is----->>> {:?}",
+             &main_table.complete_name(),
+             changeset);
+    let mut updated_inserts: Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
+    if let Some(changeset) = changeset {
         println!("main changeset: {:?}", changeset);
-        for ref insert in &changeset.inserted{
+        for ref insert in &changeset.inserted {
             println!("inserts: {:#?}", insert);
             let result: Dao = insert_dao(context, &main_tab_table, &insert.dao)?;
             let updated_insert = DaoInsert::update_from_inserted_dao(&insert, &result);
             updated_inserts.push(updated_insert);
         }
-        println!("-->>> There are {} DAO's to be deleted", changeset.deleted.len());
-        for ref delete in &changeset.deleted{
+        println!("-->>> There are {} DAO's to be deleted",
+                 changeset.deleted.len());
+        for ref delete in &changeset.deleted {
             // determine if the table properties which decides
             // whether to delete its referring record
             // when this dao is referred, and the referring table is an extension table
             // delete the record in the extension table first, then this.
-			// delete the extension first
-			
-			// TODO: the main da, primary keys may not be the same as the name in the refering tables
-			// will have to recreate the filter for each referring tables
-			delete_records_in_extension_tables(context, main_table, delete);
-			delete_records_in_direct_tables(context, main_table, delete);
-			delete_records_in_linker_tables(context, main_table, delete);
+            // delete the extension first
+
+            // TODO: the main da, primary keys may not be the same as the name in the refering tables
+            // will have to recreate the filter for each referring tables
+            delete_records_in_extension_tables(context, main_table, delete);
+            delete_records_in_direct_tables(context, main_table, delete);
+            delete_records_in_linker_tables(context, main_table, delete);
 
             let result = delete_dao(context, main_tab_table, delete);
-            match result{
+            match result {
                 Ok(result) => println!("DELETED: {:?}", result),
                 Err(e) => println!("ERROR in deleting dao : {}", e),
             }
         }
-        for ref update in &changeset.updated{
-            println!("update: {:#?}", update); 
+        for ref update in &changeset.updated {
+            println!("update: {:#?}", update);
             update_dao(context, &main_tab_table, update)?;
         }
     }
     println!("updated inserts: {:#?}", updated_inserts);
-    Ok( updated_inserts )
+    Ok(updated_inserts)
 }
 
-fn delete_records_in_extension_tables(context: &mut Context, main_table: &Table, dao: &Dao){
-	let all_tables = window_api::get_tables(context);
-	let extension_tables = main_table.extension_tables(&all_tables);
-	for ext_table in extension_tables{
-		let filter = build_translated_filter(main_table, dao, &ext_table);
-		println!("ext table: {}", ext_table.complete_name());
-		delete_dao_with_filter(context, ext_table, &filter);	
-	}
+fn delete_records_in_extension_tables(context: &mut Context, main_table: &Table, dao: &Dao) {
+    let all_tables = window_api::get_tables(context);
+    let extension_tables = main_table.extension_tables(&all_tables);
+    for ext_table in extension_tables {
+        let filter = build_translated_filter(main_table, dao, &ext_table);
+        println!("ext table: {}", ext_table.complete_name());
+        delete_dao_with_filter(context, ext_table, &filter);
+    }
 }
 
 /// create a filter for referring table `table` using the record `main_dao` which is
 /// a record in context from `main_table`
 /// Note: `main_dao` column names is in context with `main_table`
 /// so the equivalent column name of `table` which foreign refers to `main_table` must be used
-/// 
+///
 fn build_translated_filter(main_table: &Table, main_dao: &Dao, table: &Table) -> Vec<Filter> {
-	let mut filters = vec![];
-	let foreign_column = table.get_foreign_columns_to_table(main_table);
-	for fc in foreign_column{
-		println!("fc: {} foreign to {:?}", fc.complete_name(), fc.foreign);
-		if let Some(ref foreign) = fc.foreign{
-			let main_pk = &foreign.column;
-			let main_value = main_dao.get(main_pk);// take the value using the pk name
-			if let Some(main_value) = main_value{
-				let filter = Filter::new(&fc.name, Equality::EQ, main_value);//but save the value using the local column name
-				filters.push(filter);
-			}
-		}
-	}
-	filters
+    let mut filters = vec![];
+    let foreign_column = table.get_foreign_columns_to_table(main_table);
+    for fc in foreign_column {
+        println!("fc: {} foreign to {:?}", fc.complete_name(), fc.foreign);
+        if let Some(ref foreign) = fc.foreign {
+            let main_pk = &foreign.column;
+            let main_value = main_dao.get(main_pk);// take the value using the pk name
+            if let Some(main_value) = main_value {
+                let filter = Filter::new(&fc.name, Equality::EQ, main_value);//but save the value using the local column name
+                filters.push(filter);
+            }
+        }
+    }
+    filters
 }
 
 
 /// delete only when the direct table is owned
-fn delete_records_in_direct_tables(context: &mut Context, main_table: &Table, dao: &Dao){
-	let all_tables = window_api::get_tables(context);
-	let direct_tables = main_table.direct_tables(&all_tables);
-	for direct in direct_tables{
-		let filter = build_translated_filter(main_table, dao, &direct);
-		println!("direct table: {}", direct.complete_name());
-		delete_dao_with_filter(context, direct, &filter);
-	}
+fn delete_records_in_direct_tables(context: &mut Context, main_table: &Table, dao: &Dao) {
+    let all_tables = window_api::get_tables(context);
+    let direct_tables = main_table.direct_tables(&all_tables);
+    for direct in direct_tables {
+        let filter = build_translated_filter(main_table, dao, &direct);
+        println!("direct table: {}", direct.complete_name());
+        delete_dao_with_filter(context, direct, &filter);
+    }
 }
 
 /// delete only up to the linker table, since the actual indirect table may also be used in other contexts
-fn delete_records_in_linker_tables(context: &mut Context, main_table: &Table, dao: &Dao){
-	let all_tables = window_api::get_tables(context);
-	let indirect_tables = main_table.indirect_tables(&all_tables);
-	for (indirect, linker, via_column) in indirect_tables{
-		let filter = build_translated_filter(main_table, dao, &linker);
-		println!("indirect: {} linker: {}", indirect.complete_name(), linker.complete_name());
-		delete_dao_with_filter(context, linker, &filter);
-	}
+fn delete_records_in_linker_tables(context: &mut Context, main_table: &Table, dao: &Dao) {
+    let all_tables = window_api::get_tables(context);
+    let indirect_tables = main_table.indirect_tables(&all_tables);
+    for (indirect, linker, via_column) in indirect_tables {
+        let filter = build_translated_filter(main_table, dao, &linker);
+        println!("indirect: {} linker: {}",
+                 indirect.complete_name(),
+                 linker.complete_name());
+        delete_dao_with_filter(context, linker, &filter);
+    }
 }
 
-fn update_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &DaoUpdate) -> Result<Option<Dao>, DbError> {
+fn update_dao(context: &mut Context,
+              tab_table: &(Tab, Table),
+              dao: &DaoUpdate)
+              -> Result<Option<Dao>, DbError> {
     let &(ref tab, ref table) = tab_table;
     let filters = create_filter_from_dao(&table, &dao.original);
     let min = dao.minimize_update();
     let mut query = Query::update();
     query.table(table);
-    for column in &table.columns{
+    for column in &table.columns {
         let value = min.get(&column.name);
-        if let Some(value) = value{
+        if let Some(value) = value {
             query.set(&column.name, value);
         }
     }
-	query.add_filters(&filters);
+    query.add_filters(&filters);
     query.return_all();
     let result = query.retrieve_one(context.db()?)?;
-    match result{
+    match result {
         Some(result) => Ok(Some(result)),
-        None => Ok(None)
+        None => Ok(None),
     }
 }
 
-fn delete_dao_with_filter(context: &mut Context, table: &Table, filters: &Vec<Filter>) -> Result<usize, DbError> {
-	let mut query = Query::delete();
-	query.from(table);
-	query.add_filters(filters);
-	let debug = query.debug_build(context.db()?);
-	query.execute(context.db()?)
+fn delete_dao_with_filter(context: &mut Context,
+                          table: &Table,
+                          filters: &Vec<Filter>)
+                          -> Result<usize, DbError> {
+    let mut query = Query::delete();
+    query.from(table);
+    query.add_filters(filters);
+    let debug = query.debug_build(context.db()?);
+    query.execute(context.db()?)
 }
 
-fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<(),DbError>{
+fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<(), DbError> {
     let &(ref tab, ref table) = tab_table;
     let filters = create_filter_from_dao(&table, dao);
     let mut query = Query::delete();
     query.from(table);
-	query.add_filters(&filters);
+    query.add_filters(&filters);
     let result = query.execute(context.db()?);
     println!("result: {:?}", result);
     Ok(())
 }
 
-fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao,DbError> {
+fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao, DbError> {
     println!("About to insert dao: {:?}", dao);
     let &(ref tab, ref table) = tab_table;
     let mut query = Query::insert();
     query.table(table);
-    for column in &table.columns{
-        if let Some(value) = dao.get(&column.name){
+    for column in &table.columns {
+        if let Some(value) = dao.get(&column.name) {
             query.set(&column.name, value);
         }
     }
     query.return_all();
-    match context.db(){
+    match context.db() {
         Ok(db) => {
-            let dao: Result<Option<Dao>,DbError> = query.retrieve_one(db);
-            println!("inserted dao: {:?}",dao);
-            match dao{
-                Ok(dao) => match dao{
-                    Some(dao) => Ok(dao),
-                    None => { return Err(DbError::new("unable to get dao")); }
-                },
-                Err(e) => Err(e)
+            let dao: Result<Option<Dao>, DbError> = query.retrieve_one(db);
+            println!("inserted dao: {:?}", dao);
+            match dao {
+                Ok(dao) => {
+                    match dao {
+                        Some(dao) => Ok(dao),
+                        None => {
+                            return Err(DbError::new("unable to get dao"));
+                        }
+                    }
+                }
+                Err(e) => Err(e),
             }
-        },
-        Err(e) => { return Err(e); }
+        }
+        Err(e) => {
+            return Err(e);
+        }
     }
 }
 
@@ -464,33 +543,39 @@ fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
 
 
 
-fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableFilter, Vec<TableFilter>){
-    let mut main_table_filter = TableFilter{
-            table: main_table.to_owned(),
-           filter: None
+fn parse_complex_url_query(main_table: &str,
+                           url_query: &Option<String>)
+                           -> (TableFilter, Vec<TableFilter>) {
+    let mut main_table_filter = TableFilter {
+        table: main_table.to_owned(),
+        filter: None,
     };
     let mut rest_table_filter = vec![];
 
-    if let &Some(ref query) = url_query{
-        let table_queries:Vec<&str> = query.split("/").collect();
-        if table_queries.len() > 0{
+    if let &Some(ref query) = url_query {
+        let table_queries: Vec<&str> = query.split("/").collect();
+        if table_queries.len() > 0 {
             main_table_filter.filter = Some(table_queries[0].to_owned());
         };
-        let rest_query:Vec<&&str> = table_queries.iter().skip(1).collect();
-        for q in rest_query{
+        let rest_query: Vec<&&str> = table_queries.iter().skip(1).collect();
+        for q in rest_query {
             let table_filter: Vec<&str> = q.split("?").collect();
             let table = if table_filter.len() > 0 {
                 Some(table_filter[0])
-            }else{None};
+            } else {
+                None
+            };
 
             let filter = if table_filter.len() > 1 {
                 Some(table_filter[1].to_owned())
-            }else{None};
+            } else {
+                None
+            };
 
-            if let Some(tbl) = table{
-                let table_filter = TableFilter{
-                        table: tbl.to_owned(),
-                        filter: filter,
+            if let Some(tbl) = table {
+                let table_filter = TableFilter {
+                    table: tbl.to_owned(),
+                    filter: filter,
                 };
                 rest_table_filter.push(table_filter);
             }
@@ -504,54 +589,73 @@ fn parse_complex_url_query(main_table:&str, url_query: &Option<String>)->(TableF
 
 
 /// can be used by the direct 1:1 and direct 1:M tab
-fn retrieve_data_from_direct_tabs(context: &mut Context, main_table: &Table, 
-    main_with_focused_filter: &Vec<Filter>, rest_vquery: &Vec<ValidatedQuery>, 
-    tabs: &Vec<Tab>) -> Result<Vec<TableDao>, ServiceError> {
+fn retrieve_data_from_direct_tabs(context: &mut Context,
+                                  main_table: &Table,
+                                  main_with_focused_filter: &Vec<Filter>,
+                                  rest_vquery: &Vec<ValidatedQuery>,
+                                  tabs: &Vec<Tab>)
+                                  -> Result<Vec<TableDao>, ServiceError> {
     let mut tabs_table_dao = vec![];
-    for tab in tabs{
-        let table = match window_api::get_matching_table(context, &tab.table){
+    for tab in tabs {
+        let table = match window_api::get_matching_table(context, &tab.table) {
             Some(table) => table,
-                None => {return Err(ServiceError::new("Unable to get table for extension"));}
+            None => {
+                return Err(ServiceError::new("Unable to get table for extension"));
+            }
         };
         let mut query = build_query(&main_table, &table, &main_with_focused_filter, rest_vquery);
         let debug = query.debug_build(context.db().unwrap());
-        match query.retrieve(context.db().unwrap()){
+        match query.retrieve(context.db().unwrap()) {
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result, &table.complete_name());
                 tabs_table_dao.push(table_dao);
-            },
-                Err(e) => {
-                    return Err(ServiceError::from(e));
-                }
+            }
+            Err(e) => {
+                return Err(ServiceError::from(e));
+            }
         }
     }
     Ok(tabs_table_dao)
 }
 
-fn retrieve_data_from_indirect_tabs(context: &mut Context, main_table: &Table, 
-        main_with_focused_filter: &Vec<Filter>, rest_vquery: &Vec<ValidatedQuery>, 
-        indirect_tabs: &Vec<Tab> ) -> Result<Vec<TableDao>, ServiceError> {
+fn retrieve_data_from_indirect_tabs(context: &mut Context,
+                                    main_table: &Table,
+                                    main_with_focused_filter: &Vec<Filter>,
+                                    rest_vquery: &Vec<ValidatedQuery>,
+                                    indirect_tabs: &Vec<Tab>)
+                                    -> Result<Vec<TableDao>, ServiceError> {
 
     let mut indirect_table_dao = vec![];
 
-    for indirect in indirect_tabs{
+    for indirect in indirect_tabs {
         // will use inner join to linker table, and inner join to the indirect
-        let indirect_table = match window_api::get_matching_table(context, &indirect.table){
+        let indirect_table = match window_api::get_matching_table(context, &indirect.table) {
             Some(indirect_table) => indirect_table,
-                None => {return Err(ServiceError::new("Unable to get table for extension"));}
+            None => {
+                return Err(ServiceError::new("Unable to get table for extension"));
+            }
         };
-        assert!(indirect.linker_table.is_some(), format!("indirect tab {} must have a linker table specified", indirect.table));
+        assert!(indirect.linker_table.is_some(),
+                format!("indirect tab {} must have a linker table specified",
+                        indirect.table));
         let linker_table_name = &indirect.linker_table.as_ref().unwrap();
-        let linker_table = match window_api::get_matching_table(context, &linker_table_name){
+        let linker_table = match window_api::get_matching_table(context, &linker_table_name) {
             Some(linker_table) => linker_table,
-                None => { return Err(ServiceError::new("linker table can not be found")); }
+            None => {
+                return Err(ServiceError::new("linker table can not be found"));
+            }
         };
-        let mut ind_query = build_query_with_linker(&main_table, &indirect_table, &main_with_focused_filter, &linker_table, rest_vquery);
+        let mut ind_query = build_query_with_linker(&main_table,
+                                                    &indirect_table,
+                                                    &main_with_focused_filter,
+                                                    &linker_table,
+                                                    rest_vquery);
 
         let debug = ind_query.debug_build(context.db().unwrap());
-        match ind_query.retrieve(context.db().unwrap()){
+        match ind_query.retrieve(context.db().unwrap()) {
             Ok(dao_result) => {
-                let table_dao = TableDao::from_dao_result(&dao_result, &indirect_table.complete_name());
+                let table_dao = TableDao::from_dao_result(&dao_result,
+                                                          &indirect_table.complete_name());
                 indirect_table_dao.push(table_dao);
             }
             Err(e) => {
@@ -563,112 +667,126 @@ fn retrieve_data_from_indirect_tabs(context: &mut Context, main_table: &Table,
 }
 
 
-fn build_query(main_table: &Table, ext_table: &Table, main_filter: &Vec<Filter>, rest_vquery: &Vec<ValidatedQuery>)->Query{
-	let mut ext_query = Query::select();
-	let ext_table_name = ext_table.to_table_name();
-	ext_query.enumerate_from_table(&ext_table_name);
-	ext_query.from(main_table);
-	let on_filter = create_on_filter(&main_table, &ext_table);
-	let ext_join = Join{
-		modifier: None,
-		join_type: Some(JoinType::INNER),
-		table_name: ext_table_name,
-		on: on_filter
-	};
-	ext_query.joins.push(ext_join);
-	for filter in main_filter{
-		ext_query.add_filter(filter.clone());
-	}
-	let ext_filters = rest_vquery.find_query(ext_table);
-	if let Some(ext_filters) = ext_filters{
-		for ext_filter in ext_filters.filters{
-			ext_query.add_filter(ext_filter);
-		}
-	}
-	ext_query
+fn build_query(main_table: &Table,
+               ext_table: &Table,
+               main_filter: &Vec<Filter>,
+               rest_vquery: &Vec<ValidatedQuery>)
+               -> Query {
+    let mut ext_query = Query::select();
+    let ext_table_name = ext_table.to_table_name();
+    ext_query.enumerate_from_table(&ext_table_name);
+    ext_query.from(main_table);
+    let on_filter = create_on_filter(&main_table, &ext_table);
+    let ext_join = Join {
+        modifier: None,
+        join_type: Some(JoinType::INNER),
+        table_name: ext_table_name,
+        on: on_filter,
+    };
+    ext_query.joins.push(ext_join);
+    for filter in main_filter {
+        ext_query.add_filter(filter.clone());
+    }
+    let ext_filters = rest_vquery.find_query(ext_table);
+    if let Some(ext_filters) = ext_filters {
+        for ext_filter in ext_filters.filters {
+            ext_query.add_filter(ext_filter);
+        }
+    }
+    ext_query
 }
 
-fn build_query_with_linker(main_table: &Table, indirect_table: &Table, 
-        main_filter: &Vec<Filter>, linker_table: &Table, rest_vquery: &Vec<ValidatedQuery>
-        )->Query{
-	let mut query = Query::select();
-	query.enumerate_from_table(&indirect_table.to_table_name());
-	query.from(main_table);
-	let join1 = Join{
-		modifier: None,
-		join_type: Some(JoinType::INNER),
-		table_name: linker_table.to_table_name(),
-		on: create_on_filter(&main_table, &linker_table)
-	};
-	query.joins.push(join1);
-	let join2 = Join{
-		modifier: None,
-		join_type: Some(JoinType::INNER),
-		table_name: indirect_table.to_table_name(),
-		on: create_on_filter(&indirect_table, &linker_table)
-	};
-	query.joins.push(join2);
-	for filter in main_filter{
-		query.add_filter(filter.clone());
-	}
-	let ind_query = rest_vquery.find_query(indirect_table);
-	if let Some(ind_query) = ind_query{
-		for indirect_filter in ind_query.filters{
-			query.add_filter(indirect_filter);
-		}
-	}
-	query
+fn build_query_with_linker(main_table: &Table,
+                           indirect_table: &Table,
+                           main_filter: &Vec<Filter>,
+                           linker_table: &Table,
+                           rest_vquery: &Vec<ValidatedQuery>)
+                           -> Query {
+    let mut query = Query::select();
+    query.enumerate_from_table(&indirect_table.to_table_name());
+    query.from(main_table);
+    let join1 = Join {
+        modifier: None,
+        join_type: Some(JoinType::INNER),
+        table_name: linker_table.to_table_name(),
+        on: create_on_filter(&main_table, &linker_table),
+    };
+    query.joins.push(join1);
+    let join2 = Join {
+        modifier: None,
+        join_type: Some(JoinType::INNER),
+        table_name: indirect_table.to_table_name(),
+        on: create_on_filter(&indirect_table, &linker_table),
+    };
+    query.joins.push(join2);
+    for filter in main_filter {
+        query.add_filter(filter.clone());
+    }
+    let ind_query = rest_vquery.find_query(indirect_table);
+    if let Some(ind_query) = ind_query {
+        for indirect_filter in ind_query.filters {
+            query.add_filter(indirect_filter);
+        }
+    }
+    query
 }
 
-fn extract_focused_dao(table:&Table, dao_list: &Vec<Dao>, focus_param: &Option<FocusParam>)->Option<Dao>{
-	if let &Some(ref focus_param) = focus_param{
-		match focus_param{
-			&FocusParam::Index(index) => {
-				if dao_list.len() > index {
-					Some(dao_list[index].clone())
-				}else{
-					None
-				}
-			},
-			&FocusParam::PrimaryBlob(ref blob) => {
-				let pkeys = table.primary_columns();
-				let blob: Vec<&str> = blob.split(",").collect();
-				assert!(pkeys.len() ==  blob.len(), "focused_record should only have the same length as the number of primary keys");
-				let mut needle: BTreeMap<String, Value> = BTreeMap::new();
-				for i in 0..pkeys.len(){
-					let pk = pkeys[i];
-					let bvalue = blob[i];
-					let value = Value::String(bvalue.to_owned());
-					let corrected_value = data_api::correct_value_type(&value, &pk.data_type);
-					needle.insert(pk.name.to_owned(), corrected_value);
-				}
-				println!("focused record map: {:#?}", needle);
-				let focused_dao = find_from_dao_list(dao_list, &needle);
-				println!("focused dao: {:#?}", focused_dao);
-				focused_dao
-			}
-		}
-	}else{
-		None
-	}
+fn extract_focused_dao(table: &Table,
+                       dao_list: &Vec<Dao>,
+                       focus_param: &Option<FocusParam>)
+                       -> Option<Dao> {
+    if let &Some(ref focus_param) = focus_param {
+        match focus_param {
+            &FocusParam::Index(index) => {
+                if dao_list.len() > index {
+                    Some(dao_list[index].clone())
+                } else {
+                    None
+                }
+            }
+            &FocusParam::PrimaryBlob(ref blob) => {
+                let pkeys = table.primary_columns();
+                let blob: Vec<&str> = blob.split(",").collect();
+                assert!(pkeys.len() == blob.len(),
+                        "focused_record should only have the same length as the number of \
+                         primary keys");
+                let mut needle: BTreeMap<String, Value> = BTreeMap::new();
+                for i in 0..pkeys.len() {
+                    let pk = pkeys[i];
+                    let bvalue = blob[i];
+                    let value = Value::String(bvalue.to_owned());
+                    let corrected_value = data_api::correct_value_type(&value, &pk.data_type);
+                    needle.insert(pk.name.to_owned(), corrected_value);
+                }
+                println!("focused record map: {:#?}", needle);
+                let focused_dao = find_from_dao_list(dao_list, &needle);
+                println!("focused dao: {:#?}", focused_dao);
+                focused_dao
+            }
+        }
+    } else {
+        None
+    }
 }
 
 fn focused_param_as_filter(table: &Table, focused_param: &FocusParam) -> Vec<Filter> {
-    match focused_param{
+    match focused_param {
         &FocusParam::Index(index) => {
             panic!("this is unsupported");
-        },
+        }
         &FocusParam::PrimaryBlob(ref blob) => {
             let pkeys = table.primary_columns();
             let blob: Vec<&str> = blob.split(",").collect();
-            assert!(pkeys.len() ==  blob.len(), "focused_record should only have the same length as the number of primary keys");
+            assert!(pkeys.len() == blob.len(),
+                    "focused_record should only have the same length as the number of primary \
+                     keys");
             let mut filters = vec![];
-            for i in 0..pkeys.len(){
+            for i in 0..pkeys.len() {
                 let pk = pkeys[i];
                 let bvalue = blob[i];
                 let value = Value::String(bvalue.to_owned());
                 let corrected_value = data_api::correct_value_type(&value, &pk.data_type);
-                let complete_name = format!("{}.{}",table.name, pk.name);
+                let complete_name = format!("{}.{}", table.name, pk.name);
                 let filter = Filter::new(&complete_name, Equality::EQ, &corrected_value);
                 filters.push(filter);
             }
@@ -677,310 +795,310 @@ fn focused_param_as_filter(table: &Table, focused_param: &FocusParam) -> Vec<Fil
     }
 }
 
-fn match_needle(dao:&Dao, needle: &BTreeMap<String, Value>)->bool{
-	let mut matches = 0;
-	for key in needle.keys(){
-		let dao_value = dao.get(key);
-		let needle_value = needle.get(key);
-		if let Some(needle_value) = needle_value{
-            if let Some(dao_value) = dao_value{
-                if needle_value == dao_value{
+fn match_needle(dao: &Dao, needle: &BTreeMap<String, Value>) -> bool {
+    let mut matches = 0;
+    for key in needle.keys() {
+        let dao_value = dao.get(key);
+        let needle_value = needle.get(key);
+        if let Some(needle_value) = needle_value {
+            if let Some(dao_value) = dao_value {
+                if needle_value == dao_value {
                     println!("we have a match here");
                     matches += 1;
-                }else{
+                } else {
                     println!("1 key didnt match");
                     return false;
                 }
             }
-		}
-	}
-	needle.keys().len() == matches
+        }
+    }
+    needle.keys().len() == matches
 }
 
-fn find_from_dao_list(dao_list:&Vec<Dao>, needle: &BTreeMap<String, Value>)->Option<Dao>{
-	for dao in dao_list{
-		if match_needle(dao, needle){
-			return Some(dao.clone());
-		}	
-	}
-	None
+fn find_from_dao_list(dao_list: &Vec<Dao>, needle: &BTreeMap<String, Value>) -> Option<Dao> {
+    for dao in dao_list {
+        if match_needle(dao, needle) {
+            return Some(dao.clone());
+        }
+    }
+    None
 }
 
 /// extract the filters of this query from main table, but adds details to the column names to avoid unambigous feild
 /// if there is no table specified in the column name, the main table is added, else leave it as it is
-fn extract_comprehensive_filter(main_table: &Table, main_query: &Query)->Vec<Filter>{
-	let mut filters = vec![];
-	for filter in &main_query.filters{
-		let mut condition = filter.condition.clone();
-		let left = match &condition.left{
-			&Operand::ColumnName(ref column) => {
-				let mut column = column.clone();
-				if column.table.is_some(){
-					//leave as is	
-				}else{
-					column.table = Some(main_table.name.to_owned())
-				}
-				Operand::ColumnName(column)
-			}
-			_ => condition.left.clone()
-		};
-		let right = match &condition.right{
-			&Operand::ColumnName(ref column) => {
-				let mut column = column.clone();
-				if column.table.is_some(){
-					//leave as is	
-				}else{
-					column.table = Some(main_table.name.to_owned())
-				}
-				Operand::ColumnName(column)
-			}
-			_ => condition.right.clone()
-		};
-		condition.left = left;
-		condition.right = right;
-		let mut new_filter = filter.clone();
-		new_filter.condition = condition;
-		filters.push(new_filter);
-	}
-	filters
+fn extract_comprehensive_filter(main_table: &Table, main_query: &Query) -> Vec<Filter> {
+    let mut filters = vec![];
+    for filter in &main_query.filters {
+        let mut condition = filter.condition.clone();
+        let left = match &condition.left {
+            &Operand::ColumnName(ref column) => {
+                let mut column = column.clone();
+                if column.table.is_some() {
+                    // leave as is
+                } else {
+                    column.table = Some(main_table.name.to_owned())
+                }
+                Operand::ColumnName(column)
+            }
+            _ => condition.left.clone(),
+        };
+        let right = match &condition.right {
+            &Operand::ColumnName(ref column) => {
+                let mut column = column.clone();
+                if column.table.is_some() {
+                    // leave as is
+                } else {
+                    column.table = Some(main_table.name.to_owned())
+                }
+                Operand::ColumnName(column)
+            }
+            _ => condition.right.clone(),
+        };
+        condition.left = left;
+        condition.right = right;
+        let mut new_filter = filter.clone();
+        new_filter.condition = condition;
+        filters.push(new_filter);
+    }
+    filters
 }
 
-fn create_on_filter(main_table: &Table, table: &Table)->Filter{
-	let foreign_columns = table.get_foreign_columns_to_table(&main_table);
-	let mut filters = vec![];
-	for fc in foreign_columns{
-		let fk = match fc.foreign{
-			Some(ref fk) => format!("{}.{}",fk.table, fk.column),
-			None => panic!("no foreign key found"),
-		};
-		let condition = Condition{
-			left: Operand::ColumnName(fc.to_column_name()),
-			equality: Equality::EQ,
-			right: Operand::ColumnName(ColumnName::from_str(&fk)),
-		};
-		let filter = Filter{
-			connector: Connector::Or,//TODO: need more work, should have for each column
-			condition: condition,
-			sub_filters: vec![],
-		};
-		filters.push(filter);
-	}
+fn create_on_filter(main_table: &Table, table: &Table) -> Filter {
+    let foreign_columns = table.get_foreign_columns_to_table(&main_table);
+    let mut filters = vec![];
+    for fc in foreign_columns {
+        let fk = match fc.foreign {
+            Some(ref fk) => format!("{}.{}", fk.table, fk.column),
+            None => panic!("no foreign key found"),
+        };
+        let condition = Condition {
+            left: Operand::ColumnName(fc.to_column_name()),
+            equality: Equality::EQ,
+            right: Operand::ColumnName(ColumnName::from_str(&fk)),
+        };
+        let filter = Filter {
+            connector: Connector::Or, // TODO: need more work, should have for each column
+            condition: condition,
+            sub_filters: vec![],
+        };
+        filters.push(filter);
+    }
 
-	// flatten filter into 1, by anding the rest to the first filter;
-	assert!(filters.len() > 0, "There must be at least 1 filter created");
-	let mut first_filter = filters[0].clone();
-	if filters.len() > 1{
-		let rest_filter = &filters[1..filters.len()];
-		for rfilter in rest_filter{
-			first_filter.sub_filters.push(rfilter.clone());
-		}
-	}
-	first_filter
+    // flatten filter into 1, by anding the rest to the first filter;
+    assert!(filters.len() > 0, "There must be at least 1 filter created");
+    let mut first_filter = filters[0].clone();
+    if filters.len() > 1 {
+        let rest_filter = &filters[1..filters.len()];
+        for rfilter in rest_filter {
+            first_filter.sub_filters.push(rfilter.clone());
+        }
+    }
+    first_filter
 }
 
-trait QuerySearch{
-	fn find_query(&self, table: &Table)->Option<Query>;
+trait QuerySearch {
+    fn find_query(&self, table: &Table) -> Option<Query>;
 }
 
-impl QuerySearch for Vec<ValidatedQuery>{
+impl QuerySearch for Vec<ValidatedQuery> {
+    fn find_query(&self, table: &Table) -> Option<Query> {
+        for vquery in self {
+            // find if the vquery will match this table
+            if &vquery.table == table {
+                return vquery.query.clone();
+            }
 
-	fn find_query(&self, table: &Table)->Option<Query>{
-		for vquery in self{
-			//find if the vquery will match this table
-			if &vquery.table == table{
-				return vquery.query.clone();
-			}
-
-		}
-		None
-	}	
-
+        }
+        None
+    }
 }
 
 /// build a filter based on primary key and its value
-fn create_filter_from_dao(table: &Table, focused_dao: &Dao)->Vec<Filter>{
-	let mut filters = vec![];
-	for pri in table.primary_columns(){
-		let pvalue = focused_dao.get(&pri.name);
-        if let Some(pvalue) = pvalue{
+fn create_filter_from_dao(table: &Table, focused_dao: &Dao) -> Vec<Filter> {
+    let mut filters = vec![];
+    for pri in table.primary_columns() {
+        let pvalue = focused_dao.get(&pri.name);
+        if let Some(pvalue) = pvalue {
             let column = pri.complete_name();
             let filter = Filter::new(&column, Equality::EQ, &pvalue.to_owned());
             filters.push(filter)
         }
-	}
-	filters
+    }
+    filters
 }
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(Clone)]
-struct DaoState{
-	focused: bool,
-	dao: Dao,
+struct DaoState {
+    focused: bool,
+    dao: Dao,
 }
 
-impl DaoState{
+impl DaoState {
+    fn from_dao(dao: Dao) -> Self {
+        DaoState {
+            focused: false,
+            dao: dao,
+        }
+    }
 
-	fn from_dao(dao: Dao)->Self{
-		DaoState{
-			focused: false,
-			dao: dao,
-		}
-	}
-	
-	fn from_dao_result(dao_result: &DaoResult)->Vec<Self>{
-		let mut dao_states = vec![];
-		for dao in &dao_result.dao{
-			let ds = DaoState::from_dao(dao.clone());
-			dao_states.push(ds)
-		}
-		dao_states
-	}
+    fn from_dao_result(dao_result: &DaoResult) -> Vec<Self> {
+        let mut dao_states = vec![];
+        for dao in &dao_result.dao {
+            let ds = DaoState::from_dao(dao.clone());
+            dao_states.push(ds)
+        }
+        dao_states
+    }
 }
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(Clone)]
-pub struct TableDao{
-	table: String,
-	dao_list: Vec<DaoState>,
+pub struct TableDao {
+    table: String,
+    dao_list: Vec<DaoState>,
     /// the page of the current fetch
     page: Option<usize>,
     /// page size of this fetch
     page_size: Option<usize>,
     /// the total number of items
     /// of this query, disregarding the page_size limit
-    total:Option<usize>,
-} 
+    total: Option<usize>,
+}
 
 
-impl TableDao{
-	
-	fn from_dao_result(dao_result: &DaoResult, table_name: &str)->Self{
-		TableDao{
-			table: table_name.to_owned(),
-			dao_list: DaoState::from_dao_result(dao_result),
+impl TableDao {
+    fn from_dao_result(dao_result: &DaoResult, table_name: &str) -> Self {
+        TableDao {
+            table: table_name.to_owned(),
+            dao_list: DaoState::from_dao_result(dao_result),
             page: dao_result.page,
             page_size: dao_result.page_size,
             total: dao_result.total,
-		}
-	}
+        }
+    }
 }
 
 
 
 #[derive(Debug)]
-struct ValidatedQuery{
-	table: Table,
-	query: Option<Query>,
-	focus_param: Option<FocusParam>
+struct ValidatedQuery {
+    table: Table,
+    query: Option<Query>,
+    focus_param: Option<FocusParam>,
 }
 
 #[derive(Debug)]
-pub struct TableFilter{
-	pub table: String,
-	pub filter: Option<String>
+pub struct TableFilter {
+    pub table: String,
+    pub filter: Option<String>,
 }
 
-impl TableFilter{
+impl TableFilter {
+    fn transform(&self,
+                 context: &mut Context,
+                 validator: &DbElementValidator)
+                 -> Result<ValidatedQuery, ParseError> {
 
-	fn transform(&self, context: &mut Context, validator: &DbElementValidator)->Result<ValidatedQuery, ParseError>{
-
-		if validator.is_valid_table(&self.table){
-			let table = match window_api::get_matching_table(context, &self.table){
-				Some(table) => table,
-				None => {return Err(ParseError::new("Unable to get matching table")); }
-			};
-			match self.filter{
-				Some(ref filter) => {
-					let parsed = inquerest::query(&filter);
-					match parsed{
-						Ok(parsed) => {
-							let focus_param = extract_focus_param(&parsed);
+        if validator.is_valid_table(&self.table) {
+            let table = match window_api::get_matching_table(context, &self.table) {
+                Some(table) => table,
+                None => {
+                    return Err(ParseError::new("Unable to get matching table"));
+                }
+            };
+            match self.filter {
+                Some(ref filter) => {
+                    let parsed = inquerest::query(&filter);
+                    match parsed {
+                        Ok(parsed) => {
+                            let focus_param = extract_focus_param(&parsed);
                             println!("got focused_param: {:#?}", focus_param);
-							let transformed = parsed.transform(&validator);
-							let vquery = ValidatedQuery{
-								table: table,
-								query: Some(transformed),
-								focus_param: focus_param,
-							};
-							Ok(vquery)
-						},
-						Err(e) => {
-							Err(ParseError::new(&format!("unable to parse query {}", e)))
-						}
-					}
-				},
-				None => {
-					let vquery = ValidatedQuery{
-						table: table,
-						query: None,
-						focus_param: None
-					};
-					Ok(vquery)
-				}
-			}
-		}else{
-			Err(ParseError::new("table is invalid"))
-		}
-	}
+                            let transformed = parsed.transform(&validator);
+                            let vquery = ValidatedQuery {
+                                table: table,
+                                query: Some(transformed),
+                                focus_param: focus_param,
+                            };
+                            Ok(vquery)
+                        }
+                        Err(e) => Err(ParseError::new(&format!("unable to parse query {}", e))),
+                    }
+                }
+                None => {
+                    let vquery = ValidatedQuery {
+                        table: table,
+                        query: None,
+                        focus_param: None,
+                    };
+                    Ok(vquery)
+                }
+            }
+        } else {
+            Err(ParseError::new("table is invalid"))
+        }
+    }
 }
 
 
 /// prioritized focused_record than focused
-fn extract_focus_param(iquery: &iq::Query)->Option<FocusParam>{
-	let focused_record = find_in_equation(&iquery.equations, "focused_record");
+fn extract_focus_param(iquery: &iq::Query) -> Option<FocusParam> {
+    let focused_record = find_in_equation(&iquery.equations, "focused_record");
     println!("focused_record: {:?}", focused_record);
-	if let Some(focused_record) = focused_record {
-        match focused_record{
+    if let Some(focused_record) = focused_record {
+        match focused_record {
             &iq::Operand::Number(number) => {
-                let primary_blob = format!("{}",number);
-                return Some(FocusParam::PrimaryBlob(primary_blob))
+                let primary_blob = format!("{}", number);
+                return Some(FocusParam::PrimaryBlob(primary_blob));
             }
             &iq::Operand::Column(ref column) => {
                 // example: focused_record=efc62342-1230af,100001
-                let primary_blob = format!("{}",column);
-                return Some(FocusParam::PrimaryBlob(primary_blob))
+                let primary_blob = format!("{}", column);
+                return Some(FocusParam::PrimaryBlob(primary_blob));
             }
-            &iq::Operand::Boolean(value)=>{
+            &iq::Operand::Boolean(value) => {
                 let primary_blob = format!("{}", value);
-                return Some(FocusParam::PrimaryBlob(primary_blob))
+                return Some(FocusParam::PrimaryBlob(primary_blob));
             }
             &iq::Operand::Value(ref value) => {
                 let primary_blob = format!("{}", value);
-                return Some(FocusParam::PrimaryBlob(primary_blob))
+                return Some(FocusParam::PrimaryBlob(primary_blob));
             }
             &iq::Operand::Function(ref value) => {
                 panic!("functions are unsupported");
             }
         }
-	}
-	let focused = find_in_equation(&iquery.equations, "focused");
-	if let Some(focused) = focused{
-		match focused{
-			&iq::Operand::Number(number) => {
-				let focused = number as usize;
-				return Some(FocusParam::Index(focused));
-			},
-				_ => () 
-		}
-	}
-	None
+    }
+    let focused = find_in_equation(&iquery.equations, "focused");
+    if let Some(focused) = focused {
+        match focused {
+            &iq::Operand::Number(number) => {
+                let focused = number as usize;
+                return Some(FocusParam::Index(focused));
+            }
+            _ => (), 
+        }
+    }
+    None
 }
 
 /// return the right operand of the equation when this colum match
-fn find_in_equation<'a>(equations: &'a Vec<iq::Equation>, left_column: &str)->Option<&'a iq::Operand>{
-	for ref eq in equations{
-		match &eq.left{
-			&iq::Operand::Column(ref column) => {
-				if column == left_column{
-					return Some(&eq.right)
-				}
-			},
-			_ => ()
-		}
-	}	
-	None
+fn find_in_equation<'a>(equations: &'a Vec<iq::Equation>,
+                        left_column: &str)
+                        -> Option<&'a iq::Operand> {
+    for ref eq in equations {
+        match &eq.left {
+            &iq::Operand::Column(ref column) => {
+                if column == left_column {
+                    return Some(&eq.right);
+                }
+            }
+            _ => (),
+        }
+    }
+    None
 }
 
 /// index will be the relative position of the record
@@ -988,23 +1106,26 @@ fn find_in_equation<'a>(equations: &'a Vec<iq::Equation>, left_column: &str)->Op
 /// comma separated values of the primary key value with respect to the
 /// position order of the primary keys in the table
 #[derive(Debug)]
-enum FocusParam{
-	Index(usize),
-	PrimaryBlob(String)
+enum FocusParam {
+    Index(usize),
+    PrimaryBlob(String),
 }
 
 
-fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao)->Vec<DaoState>{
-	let mut dao_states = vec![];
-	for dao in dao_list{
-		if dao == focused_dao{
-			let dao_state = DaoState{focused: true, dao: dao.clone()};
-			dao_states.push(dao_state);
-		}else{
-			dao_states.push(DaoState::from_dao(dao.clone()));
-		}
-	}
-	dao_states
+fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao) -> Vec<DaoState> {
+    let mut dao_states = vec![];
+    for dao in dao_list {
+        if dao == focused_dao {
+            let dao_state = DaoState {
+                focused: true,
+                dao: dao.clone(),
+            };
+            dao_states.push(dao_state);
+        } else {
+            dao_states.push(DaoState::from_dao(dao.clone()));
+        }
+    }
+    dao_states
 }
 
 
@@ -1012,53 +1133,54 @@ fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao)->Vec<DaoState>{
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
-pub struct DaoUpdate{
-	pub original: Dao,
-	pub updated: Dao,
+pub struct DaoUpdate {
+    pub original: Dao,
+    pub updated: Dao,
 }
 
-impl DaoUpdate{
-		
-	/// get only the minimal update by including only the 
-	/// changed values
-	pub fn minimize_update(&self)->Dao{
-		let mut changeset = Dao::new();
-		let keys = self.original.keys();
-		for key in keys{
-			println!("key: {:?}", key);
-			let updated_value = self.updated.get(key);
-			let orig_value = self.original.get(key);
-            if updated_value == orig_value{
+impl DaoUpdate {
+    /// get only the minimal update by including only the
+    /// changed values
+    pub fn minimize_update(&self) -> Dao {
+        let mut changeset = Dao::new();
+        let keys = self.original.keys();
+        for key in keys {
+            println!("key: {:?}", key);
+            let updated_value = self.updated.get(key);
+            let orig_value = self.original.get(key);
+            if updated_value == orig_value {
                 println!("no change for {}", key);
-            }else{
-                if let Some(updated_value) = updated_value{
+            } else {
+                if let Some(updated_value) = updated_value {
                     changeset.insert(key.to_owned(), updated_value.to_owned());
                 }
             }
-		}
-		changeset
-	}
+        }
+        changeset
+    }
 }
 
 #[test]
-fn test_dao_minimize_update(){
-	let mut dao1 = Dao::new();
-	dao1.insert("key1".to_owned(),Value::String("value1".to_owned()));
-	dao1.insert("key2".to_owned(),Value::String("value2".to_owned()));
+fn test_dao_minimize_update() {
+    let mut dao1 = Dao::new();
+    dao1.insert("key1".to_owned(), Value::String("value1".to_owned()));
+    dao1.insert("key2".to_owned(), Value::String("value2".to_owned()));
 
-	let mut dao2 = dao1.clone();
-	dao2.insert("key2".to_owned(),Value::String("I changed this".to_owned()));
+    let mut dao2 = dao1.clone();
+    dao2.insert("key2".to_owned(),
+                Value::String("I changed this".to_owned()));
 
-	let update = DaoUpdate{
-		original: dao1.clone(),
-		updated: dao2.clone()
-	};
-	let min = update.minimize_update();
-	println!("min: {:#?}",min);
-	let mut expected = Dao::new();
-	expected.insert("key2".to_owned(), Value::String("I changed this".to_owned()));
+    let update = DaoUpdate {
+        original: dao1.clone(),
+        updated: dao2.clone(),
+    };
+    let min = update.minimize_update();
+    println!("min: {:#?}", min);
+    let mut expected = Dao::new();
+    expected.insert("key2".to_owned(),
+                    Value::String("I changed this".to_owned()));
 
-	assert_eq!(expected, min);
+    assert_eq!(expected, min);
 }
 
 /// Dao for inserting, but with record ID to
@@ -1070,73 +1192,68 @@ fn test_dao_minimize_update(){
 /// This is akin to simultaneously inserting relative records into different table
 /// the primary key of the main record will have to return and will be used in the referring table
 /// for the succedding insert operation
-
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
 #[derive(Clone)]
-pub struct DaoInsert{
-	pub record_id: Uuid, // if record that is about to be inserted belongs to the main table
-	dao: Dao, // the dao to be inserted
-    referred_record: Option<ReferredRecord>
+pub struct DaoInsert {
+    pub record_id: Uuid, // if record that is about to be inserted belongs to the main table
+    dao: Dao, // the dao to be inserted
+    referred_record: Option<ReferredRecord>,
 }
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
 #[derive(Clone)]
-pub enum ReferredRecord{
-    TemporaryId(Uuid), //when it is just inserted as well, and has not been saved into the database to yet obtain it's primary key values
-    Dao(Dao),// when it is an existing record
+pub enum ReferredRecord {
+    TemporaryId(Uuid), /* when it is just inserted as well, and has not been saved into the database to yet obtain it's primary key values */
+    Dao(Dao), // when it is an existing record
 }
 
-impl DaoInsert{
-
-    /// call this when the record has been inserted into the database with 
+impl DaoInsert {
+    /// call this when the record has been inserted into the database with
     /// the primary values already being set
-    fn update_from_inserted_dao(orig: &DaoInsert, inserted_dao: &Dao) -> Self{
+    fn update_from_inserted_dao(orig: &DaoInsert, inserted_dao: &Dao) -> Self {
         let mut dao_insert = orig.clone();
         dao_insert.dao = inserted_dao.clone();
         dao_insert
     }
 
     /// use this when inserting to the main table
-    pub fn for_main(dao: &Dao) -> Self{
-        DaoInsert{
+    pub fn for_main(dao: &Dao) -> Self {
+        DaoInsert {
             record_id: Uuid::new_v4(),
             dao: dao.clone(),
             referred_record: None,
         }
     }
-	 
-	pub fn from_dao_with_existing_parent(dao: &Dao, main_dao: &Dao)->Self{
-		DaoInsert{
-			record_id: Uuid::new_v4(),
-			dao: dao.clone(),
-			referred_record: Some(ReferredRecord::Dao(main_dao.clone())),
-		}
-	}
+
+    pub fn from_dao_with_existing_parent(dao: &Dao, main_dao: &Dao) -> Self {
+        DaoInsert {
+            record_id: Uuid::new_v4(),
+            dao: dao.clone(),
+            referred_record: Some(ReferredRecord::Dao(main_dao.clone())),
+        }
+    }
 
     pub fn from_dao_with_newly_inserted_parent(dao: &Dao, uuid: Uuid) -> Self {
-        DaoInsert{
+        DaoInsert {
             record_id: Uuid::new_v4(),
             dao: dao.clone(),
             referred_record: Some(ReferredRecord::TemporaryId(uuid)),
         }
     }
-
 }
 
-trait SearchDaoInsert{
+trait SearchDaoInsert {
     fn find(&self, record_id: &Uuid) -> Option<&DaoInsert>;
 }
 
-impl SearchDaoInsert for Vec<DaoInsert>{
-
-    
-    fn find(&self, record_id: &Uuid) -> Option<&DaoInsert>{
-        for insert in self{
-            if &insert.record_id == record_id{
+impl SearchDaoInsert for Vec<DaoInsert> {
+    fn find(&self, record_id: &Uuid) -> Option<&DaoInsert> {
+        for insert in self {
+            if &insert.record_id == record_id {
                 return Some(insert);
             }
         }
@@ -1152,41 +1269,35 @@ impl SearchDaoInsert for Vec<DaoInsert>{
 /// insert changeset must bear the parent table dao to know which referred primary value to refer to
 /// deleted changeset in extension tables deletes it
 /// deleted changeset in direct has_many table (order->order_line) deletes it.
-/// deleted changeset in indirect has_many table only deletes the record in the linker table that refers 
+/// deleted changeset in indirect has_many table only deletes the record in the linker table that refers
 /// the record and the main table dao,
 /// an optional delete the record in the indirect table when it is not refered by anywhere else for sanitation purposes
 /// and cleanup maintenance.
-
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
-pub struct ChangeSet{
-	pub table: String,
-	pub inserted: Vec<DaoInsert>,
-	pub deleted: Vec<Dao>,// if in has_many, delete the record, if has_many indirect, delete the linker record (and? as well together with the indirect record)?? if still referred by some other table
-	pub updated: Vec<DaoUpdate> // it's primary key value stay in change so no worry about reference errors, updates on has_many and has_many indirect may not be allowed,
+pub struct ChangeSet {
+    pub table: String,
+    pub inserted: Vec<DaoInsert>,
+    pub deleted: Vec<Dao>, /* if in has_many, delete the record, if has_many indirect, delete the linker record (and? as well together with the indirect record)?? if still referred by some other table */
+    pub updated: Vec<DaoUpdate>, /* it's primary key value stay in change so no worry about reference errors, updates on has_many and has_many indirect may not be allowed */
 }
 
 
-trait Search{
-	type Output;
-    fn find(&self, needle: &str)->Option<&Self::Output>;
+trait Search {
+    type Output;
+    fn find(&self, needle: &str) -> Option<&Self::Output>;
 }
 
-impl Search for Vec<ChangeSet>{
+impl Search for Vec<ChangeSet> {
+    type Output = ChangeSet;
 
-	type Output = ChangeSet;
-    
-    fn find(&self, table: &str) -> Option<&ChangeSet>{
-        for cs in self{
-            if table == cs.table{
-                return Some(cs)
+    fn find(&self, table: &str) -> Option<&ChangeSet> {
+        for cs in self {
+            if table == cs.table {
+                return Some(cs);
             }
         }
         None
     }
 }
-
-
-
-

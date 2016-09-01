@@ -3,7 +3,7 @@ use router::Router;
 use iron::prelude::*;
 use iron::headers::*;
 use iron::status::Status;
-use rustc_serialize::json::{self};
+use rustc_serialize::json;
 
 use rustorm::database::DatabaseDev;
 use rustorm::query::TableName;
@@ -21,24 +21,24 @@ use global::Context;
 /// or to pass the Arc Mutex and lock unly when needed
 pub fn http_list_window(req: &mut Request) -> IronResult<Response> {
     let mut context = Context::new(req);
-	let json = window_service::window_json::json_list_window(&mut context);
-    match json{
+    let json = window_service::window_json::json_list_window(&mut context);
+    match json {
         Ok(json) => Ok(Response::with((Status::Ok, json))),
-        Err(json) => Ok(Response::with((Status::BadRequest, json)))
+        Err(json) => Ok(Response::with((Status::BadRequest, json))),
     }
 }
 
 
 /// http request
 pub fn http_get_window(req: &mut Request) -> IronResult<Response> {
-    let table = match req.extensions.get::<Router>().unwrap().find("table"){
+    let table = match req.extensions.get::<Router>().unwrap().find("table") {
         Some(table) => table.to_owned(),
         None => return Ok(Response::with((Status::BadRequest, "No table specified"))),
     };
     let mut context = Context::new(req);
-	let json = window_service::window_json::json_get_window(&mut context, &table);
-    match json{
+    let json = window_service::window_json::json_get_window(&mut context, &table);
+    match json {
         Ok(json) => Ok(Response::with((Status::Ok, json))),
-        Err(json) => Ok(Response::with((Status::BadRequest, json)))
+        Err(json) => Ok(Response::with((Status::BadRequest, json))),
     }
 }

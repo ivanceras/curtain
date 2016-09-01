@@ -6,25 +6,23 @@ use rustc_serialize::json;
 
 
 #[derive(Debug)]
-pub enum ServiceError{
-    Error(String),// generic service error
+pub enum ServiceError {
+    Error(String), // generic service error
     DbError(DbError), // db related error
     ParseError(ParseError), // json parsing, inquerest parsing error
     ParamError(ParamError), // parameter missing errors
 }
 
-impl ServiceError{
-
+impl ServiceError {
     pub fn new(description: &str) -> Self {
         ServiceError::Error(description.to_owned())
     }
 }
 
 
-impl Error for ServiceError{
-    
-    fn description(&self) -> &str{
-        match *self{
+impl Error for ServiceError {
+    fn description(&self) -> &str {
+        match *self {
             ServiceError::Error(ref description) => description,
             ServiceError::DbError(ref err) => err.description(),
             ServiceError::ParseError(ref err) => err.description(),
@@ -33,7 +31,7 @@ impl Error for ServiceError{
     }
 
     fn cause(&self) -> Option<&Error> {
-        match *self{
+        match *self {
             ServiceError::Error(_) => None,
             ServiceError::DbError(ref err) => Some(err),
             ServiceError::ParseError(ref err) => Some(err),
@@ -42,118 +40,110 @@ impl Error for ServiceError{
     }
 }
 
-impl Display for ServiceError{
-   
+impl Display for ServiceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self{
+        match *self {
             ServiceError::Error(ref err) => write!(f, "{}", self.description()),
             ServiceError::DbError(ref err) => write!(f, "Db Error: {}", err),
             ServiceError::ParseError(ref err) => write!(f, "Parse error: {}", err),
-            ServiceError::ParamError(ref err) => write!(f, "Param error: {}", err)
+            ServiceError::ParamError(ref err) => write!(f, "Param error: {}", err),
         }
     }
 }
 
-impl From<DbError> for ServiceError{
-    
-    fn from(err: DbError) -> Self{
+impl From<DbError> for ServiceError {
+    fn from(err: DbError) -> Self {
         ServiceError::DbError(err)
     }
 }
 
-impl From<ParseError> for ServiceError{
-    
-    fn from(err: ParseError) -> Self{
+impl From<ParseError> for ServiceError {
+    fn from(err: ParseError) -> Self {
         ServiceError::ParseError(err)
     }
 }
 
-impl From<ParamError> for ServiceError{
-    fn from(err: ParamError) -> Self{
+impl From<ParamError> for ServiceError {
+    fn from(err: ParamError) -> Self {
         ServiceError::ParamError(err)
     }
 }
 
 
 #[derive(Debug)]
-pub enum ParseError{
-    Error(String),// parsing inquerest error
-    JsonParserError(json::ParserError),// json parsing error
+pub enum ParseError {
+    Error(String), // parsing inquerest error
+    JsonParserError(json::ParserError), // json parsing error
 }
 
 
-impl ParseError{
-	
-	pub fn new(description: &str)->Self{
-		ParseError::Error(description.to_owned())
-	}
+impl ParseError {
+    pub fn new(description: &str) -> Self {
+        ParseError::Error(description.to_owned())
+    }
 }
 
-impl fmt::Display for ParseError{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        match *self{
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
             ParseError::Error(_) => write!(f, "{}", self.description()),
             ParseError::JsonParserError(ref err) => write!(f, "Json parsing error {}", err),
         }
     }
 }
 
-impl Error for ParseError{
-    
-    fn description(&self) -> &str{
-        match *self{
+impl Error for ParseError {
+    fn description(&self) -> &str {
+        match *self {
             ParseError::Error(ref description) => description,
             ParseError::JsonParserError(ref err) => err.description(),
         }
     }
 
     fn cause(&self) -> Option<&Error> {
-        match *self{
+        match *self {
             ParseError::Error(_) => None,
-            ParseError::JsonParserError(ref err) => Some(err)
+            ParseError::JsonParserError(ref err) => Some(err),
         }
     }
 }
 
-impl From<json::ParserError> for ParseError{
-    
-    fn from(err: json::ParserError) -> Self{
+impl From<json::ParserError> for ParseError {
+    fn from(err: json::ParserError) -> Self {
         ParseError::JsonParserError(err)
     }
 }
 
 
 #[derive(Debug)]
-pub enum ParamError{
-    Error(String)
+pub enum ParamError {
+    Error(String),
 }
 
-impl ParamError{
+impl ParamError {
     pub fn new(description: &str) -> Self {
         ParamError::Error(description.to_owned())
     }
 }
 
-impl fmt::Display for ParamError{
-
+impl fmt::Display for ParamError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self{
-            ParamError::Error(_) => write!(f, "{}", self.description())
+        match *self {
+            ParamError::Error(_) => write!(f, "{}", self.description()),
         }
     }
 }
 
-impl Error for ParamError{
-    fn description(&self) -> &str{
-        match *self{
+impl Error for ParamError {
+    fn description(&self) -> &str {
+        match *self {
             ParamError::Error(ref description) => description,
         }
     }
 
     fn cause(&self) -> Option<&Error> {
-        match *self{
-            ParamError::Error(_) => None
+        match *self {
+            ParamError::Error(_) => None,
         }
     }
 }
-

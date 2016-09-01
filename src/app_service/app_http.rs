@@ -16,78 +16,72 @@ use rustorm::dao::Dao;
 use rustorm::dao::DaoResult;
 use rustorm::table::Table;
 use rustorm::query::Equality;
-use rustorm::query::{Filter,Join, JoinType, Modifier, Condition, Operand, Connector};
-use rustorm::query::{TableName,ToTableName};
+use rustorm::query::{Filter, Join, JoinType, Modifier, Condition, Operand, Connector};
+use rustorm::query::{TableName, ToTableName};
 use rustorm::query::source::ToSourceField;
-use rustorm::query::column_name::{ToColumnName,ColumnName};
+use rustorm::query::column_name::{ToColumnName, ColumnName};
 use rustc_serialize::json;
 use app_service::app_api::TableFilter;
 use app_service;
-use rustc_serialize::json::{Json};
+use rustc_serialize::json::Json;
 use error::ParseError;
 use std::io::Read;
 
 
 /// example: http://localhost:8181/app/bazaar.product?price=gt.100.012e-10&order_by=product.seq_no&limit=10&focused=3/category?category.name=eq.accessories&order_by=name.asc.nullsfirst&focused=0
-pub fn http_complex_query(req: &mut Request)->IronResult<Response>{
+pub fn http_complex_query(req: &mut Request) -> IronResult<Response> {
     let mut context = Context::new(req);
-	match extract_params(req){
-		Ok( (main_table, url_query) ) => {
-			let json = app_service::app_json::json_complex_query(&mut context, &main_table, &url_query);
-            match json{
+    match extract_params(req) {
+        Ok((main_table, url_query)) => {
+            let json =
+                app_service::app_json::json_complex_query(&mut context, &main_table, &url_query);
+            match json {
                 Ok(json) => Ok(Response::with((status::Ok, json))),
-                Err(json) => Ok(Response::with((status::BadRequest, json)))
+                Err(json) => Ok(Response::with((status::BadRequest, json))),
             }
-		}
-		Err(e) => {
-			Ok(Response::with((status::BadRequest, format!("{:?}", e))))
-		}
-	}
+        }
+        Err(e) => Ok(Response::with((status::BadRequest, format!("{:?}", e)))),
+    }
 }
 
 pub fn http_focused_record(req: &mut Request) -> IronResult<Response> {
     let mut context = Context::new(req);
-	match extract_params(req){
-		Ok( (main_table, url_query) ) => {
-			let json = app_service::app_json::json_focused_record(&mut context, &main_table, &url_query);
-            match json{
+    match extract_params(req) {
+        Ok((main_table, url_query)) => {
+            let json =
+                app_service::app_json::json_focused_record(&mut context, &main_table, &url_query);
+            match json {
                 Ok(json) => Ok(Response::with((status::Ok, json))),
-                Err(json) => Ok(Response::with((status::BadRequest, json)))
+                Err(json) => Ok(Response::with((status::BadRequest, json))),
             }
-		}
-		Err(e) => {
-			Ok(Response::with((status::BadRequest, format!("{:?}", e))))
-		}
-	}
+        }
+        Err(e) => Ok(Response::with((status::BadRequest, format!("{:?}", e)))),
+    }
 }
 
-pub fn http_update_data(req: &mut Request)->IronResult<Response>{
+pub fn http_update_data(req: &mut Request) -> IronResult<Response> {
     let mut context = Context::new(req);
-	let main_table = req.extensions.get::<Router>().unwrap().find("main_table");
-	let mut body = String::new(); 
-	req.body.read_to_string(&mut body);
+    let main_table = req.extensions.get::<Router>().unwrap().find("main_table");
+    let mut body = String::new();
+    req.body.read_to_string(&mut body);
 
-	match main_table{
-		Some( main_table ) => {
+    match main_table {
+        Some(main_table) => {
             let json = app_service::app_json::json_update_data(&mut context, &main_table, &body);
-            match json{
+            match json {
                 Ok(json) => Ok(Response::with((status::Ok, json))),
-                Err(json) => Ok(Response::with((status::BadRequest, json)))
+                Err(json) => Ok(Response::with((status::BadRequest, json))),
             }
-		}
-		None => {
-			Ok(Response::with((status::BadRequest, "No main table specified")))
-		}
-	}
+        }
+        None => Ok(Response::with((status::BadRequest, "No main table specified"))),
+    }
 }
 
-fn extract_params(req: &mut Request)->Result<(String, Option<String>),ParseError>{
-	let main_table = req.extensions.get::<Router>().unwrap().find("main_table");
-    if let Some(main_table) = main_table{
+fn extract_params(req: &mut Request) -> Result<(String, Option<String>), ParseError> {
+    let main_table = req.extensions.get::<Router>().unwrap().find("main_table");
+    if let Some(main_table) = main_table {
         let query = req.url.query.to_owned();
         return Ok((main_table.to_owned(), query));
     }
     Err(ParseError::new("no main table specified"))
 }
-
-
