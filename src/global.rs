@@ -1,6 +1,6 @@
 use iron::prelude::*;
 use iron::status::Status;
-use persistent::{State};
+use persistent::State;
 
 use rustorm::pool::ManagedPool;
 use iron::typemap::Key;
@@ -194,19 +194,6 @@ impl Context{
         context
     }
 
-    /// only use when api not called from http request
-    /// this is not shared with other threads
-    /// Warning: Do not use this when used as a web server
-    pub fn  new_from_url(db_url: &str) -> Self{
-        let globals = GlobalPools::new();
-        let arc = Arc::new(RwLock::new(globals));
-        Context{
-            db_url: db_url.into(),
-            arc: arc,
-            platform: None
-        }
-    }
-    
     pub fn db_dev<'a>(&'a mut self)->Result<&'a DatabaseDev,DbError>{
         let platform = self.get_connection();
         self.platform = Some(platform.unwrap());
@@ -253,10 +240,9 @@ impl Context{
 		}
 	}
 
-    pub fn cache_tables(&self, tables: Vec<Table>){
+    pub fn cache_tables(&self, tables: Vec<Table>)->Result<(),DbError>{
         let ref mut globals = *self.arc.write().unwrap();
-        globals.cache_tables(&self.db_url, tables);
-    
+        globals.cache_tables(&self.db_url, tables)
     }
 
     pub fn has_cached_tables(&self)->bool{

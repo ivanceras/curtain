@@ -1,13 +1,9 @@
 //! API for json calls such as API calls from nodejs
 //! and calls from http request which most likely needs to use json format
-use rustc_serialize::json::{self, Json};
-use rustorm::database::{Database,DatabaseDev};
+use rustc_serialize::json::{self,Json};
 use inquerest;
 use data_service;
-use global::GlobalPools;
-use from_query::FromQuery;
 use rustorm::dao::Dao;
-use std::sync::{Arc,RwLock};
 use global::Context;
 
 

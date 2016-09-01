@@ -2,14 +2,13 @@ extern crate inquerest as iq;
 extern crate rustorm;
 
 use rustorm::query::{Query, Join, Filter, Condition, Connector, 
-    Equality, Operand, ToTableName, Modifier, JoinType,
+    Equality, Operand, Modifier, JoinType,
     ColumnName, Function, Direction, Range, NullsWhere,
 	Order,
     };
 use rustorm::query::TableName;
 use rustorm::dao::Value;
 use rustorm::query::source::QuerySource;
-use std::collections::HashSet;
 use validator::DbElementValidator;
 
 /// convert inquery to sql query

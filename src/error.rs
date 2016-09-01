@@ -81,6 +81,7 @@ pub enum ParseError{
     JsonParserError(json::ParserError),// json parsing error
 }
 
+
 impl ParseError{
 	
 	pub fn new(description: &str)->Self{

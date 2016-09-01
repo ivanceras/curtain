@@ -19,7 +19,7 @@ use router::Router;
 use std::str::FromStr;
 use std::env;
 use iron::prelude::*;
-use persistent::{Write, State, Read};
+use persistent::State;
 use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
 use global::GlobalPools;

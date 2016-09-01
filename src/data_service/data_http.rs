@@ -6,20 +6,10 @@ use rustc_serialize::json::{self};
 use rustorm::database::{Database,DatabaseDev};
 use rustorm::dao::{DaoResult};
 use rustorm::database::DbError;
-use rustorm::query::Query;
-use std::io::Read;
-use window_service;
-use std::collections::BTreeMap;
-use rustorm::table::{Table, Column};
-use rustc_serialize::json::Json;
-use rustorm::query::{Filter, Equality, Join, Modifier, ToTableName};
-use rustorm::dao::Value;
-use uuid::Uuid;
+use rustorm::table::Column;
 use data_service;
 use inquerest;
-use from_query::FromQuery;
 use iron::status::Status;
-use global::{self, GlobalPools};
 use global::Context;
 
 pub fn http_data_query(req: &mut Request)->IronResult<Response>{

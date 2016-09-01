@@ -65,7 +65,7 @@ impl DbElementValidator{
     /// just check if the keys are valid column
     /// not checking if the column belongs to the specific table
     /// for the dao
-    pub fn is_valid_dao(&self, dao: &Dao) -> bool{
+    fn is_valid_dao(&self, dao: &Dao) -> bool{
        for key in dao.keys(){
             if self.is_valid_column(&key){
                 //valid column
