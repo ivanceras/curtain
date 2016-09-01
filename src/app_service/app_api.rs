@@ -146,6 +146,7 @@ fn retrieve_data_from_focused_dao(context: &mut Context, main_query: &ValidatedQ
 
 
 pub fn update_data(context: &mut Context, main_table: &str, updatable_data: &str)->Result<(),ServiceError>{
+    println!("received update data: {}", updatable_data);
 	if updatable_data.trim().is_empty(){
 		return Err(ServiceError::from(ParamError::new("empty updatable data")));
 	}else{
@@ -221,13 +222,13 @@ fn extract_window_tables(context: &mut Context, window: &Window) -> Result<Windo
 
 /// for each table on this window, get their corresponding changeset and apply each changeset accordingly
 fn apply_data_changeset(context: &mut Context, window: &Window, changesets: &Vec<ChangeSet>) -> Result<(), DbError>{
-	println!("applying changeset");
+	println!("-->applying changeset {:?}",changesets);
 	let window_tables = match extract_window_tables(context, window){
 		Ok(window_tables) => {
 			let updated_inserts = apply_changeset_to_main_table(context, &window_tables.main_table, changesets);
 			match updated_inserts{
 				Ok(updated_inserts) => {
-
+                    println!("changeset to main table applied");
 				},
 				Err(e) => {
 					println!("There is something wrong applying changesets to main table: {}", e);
@@ -295,9 +296,10 @@ fn insert_dao_to_linker(context: &mut Context, main_table: &Table, table: &Table
 
 fn apply_changeset_to_main_table(context: &mut Context, main_tab_table: &(Tab, Table), 
         changesets: &Vec<ChangeSet>) -> Result< Vec<DaoInsert> , DbError> {
-    println!("applying changeset to main table");
+    println!("applying changeset to main table: {:?}",changesets);
     let &(ref main_tab, ref main_table) = main_tab_table;
-    let changeset = changesets.find(&main_table.name);//TODO: This uses complete name, may not match
+    let changeset = changesets.find(&main_table.name);//TODO: should employ smarter matching 
+    println!("Finding change set for {} there is----->>> {:?}", &main_table.complete_name(),changeset);
     let mut updated_inserts:Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
     if let Some(changeset) = changeset{
         println!("main changeset: {:?}", changeset);
@@ -432,6 +434,7 @@ fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
 }
 
 fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao,DbError> {
+    println!("About to insert dao: {:?}", dao);
     let &(ref tab, ref table) = tab_table;
     let mut query = Query::insert();
     query.table(table);
@@ -444,6 +447,7 @@ fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
     match context.db(){
         Ok(db) => {
             let dao: Result<Option<Dao>,DbError> = query.retrieve_one(db);
+            println!("inserted dao: {:?}",dao);
             match dao{
                 Ok(dao) => match dao{
                     Some(dao) => Ok(dao),
