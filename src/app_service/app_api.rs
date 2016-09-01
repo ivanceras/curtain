@@ -297,7 +297,7 @@ fn apply_changeset_to_main_table(context: &mut Context, main_tab_table: &(Tab, T
         changesets: &Vec<ChangeSet>) -> Result< Vec<DaoInsert> , DbError> {
     println!("applying changeset to main table");
     let &(ref main_tab, ref main_table) = main_tab_table;
-    let changeset = changesets.find(&main_table.complete_name());
+    let changeset = changesets.find(&main_table.name);//TODO: This uses complete name, may not match
     let mut updated_inserts:Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
     if let Some(changeset) = changeset{
         println!("main changeset: {:?}", changeset);
@@ -307,8 +307,8 @@ fn apply_changeset_to_main_table(context: &mut Context, main_tab_table: &(Tab, T
             let updated_insert = DaoInsert::update_from_inserted_dao(&insert, &result);
             updated_inserts.push(updated_insert);
         }
+        println!("-->>> There are {} DAO's to be deleted", changeset.deleted.len());
         for ref delete in &changeset.deleted{
-            println!("delete: {:#?}", delete);
             // determine if the table properties which decides
             // whether to delete its referring record
             // when this dao is referred, and the referring table is an extension table
@@ -323,8 +323,8 @@ fn apply_changeset_to_main_table(context: &mut Context, main_tab_table: &(Tab, T
 
             let result = delete_dao(context, main_tab_table, delete);
             match result{
-                Ok(result) => println!("got: {:?}", result),
-                Err(e) => println!("delete dao got: {}", e),
+                Ok(result) => println!("DELETED: {:?}", result),
+                Err(e) => println!("ERROR in deleting dao : {}", e),
             }
         }
         for ref update in &changeset.updated{

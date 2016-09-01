@@ -13,7 +13,7 @@ name = "iron_curtain"
 [dependencies]
 hyper = "0.8"
 rustc-serialize = "0.3"
-uuid = "0.2"
+uuid = {version = "0.3", features = ["v4"]}
 iron = "0.3"
 mount = "0.1"
 router = "0.1"
@@ -29,7 +29,7 @@ version = "0.1"
 #path = "../inquerest"
 
 [dependencies.rustorm]
-version = "^0.5"
+version = "0.5"
 #path = "../rustorm"
 #features = ["sqlite"]
 
