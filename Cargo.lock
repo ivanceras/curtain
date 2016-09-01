@@ -156,7 +156,7 @@ name = "inquerest"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "peg 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "peg 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "peg"
-version = "0.3.14"
+version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -713,7 +713,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum openssl 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "c4117b6244aac42ed0150a6019b4d953d28247c5dd6ae6f46ae469b5f2318733"
 "checksum openssl-sys 0.7.17 (registry+https://github.com/rust-lang/crates.io-index)" = "89c47ee94c352eea9ddaf8e364be7f978a3bb6d66d73176572484238dd5a5c3f"
 "checksum openssl-sys-extras 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "11c5e1dba7d3d03d80f045bf0d60111dc69213b67651e7c889527a3badabb9fa"
-"checksum peg 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "2b5eb263593c6dde7cebf6422e655e1b7fddd0827721c00c05ac0c964ebed4da"
+"checksum peg 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "f5f8a8bb7fbfd203858c91d2411c92fb1d294edec1c53d68a1ec10c681959510"
 "checksum persistent 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b5830c40f2c2d6b4f14ed2221d16b72aa3224869e11e5f3434602fc2caeea876"
 "checksum phf 0.7.15 (registry+https://github.com/rust-lang/crates.io-index)" = "17896951e179a6cbed7d3519b3078ac6c03a347d3e9cf8f303c8a1a73c5a3e44"
 "checksum phf_shared 0.7.15 (registry+https://github.com/rust-lang/crates.io-index)" = "bb6c14aac1140c2b06b41477096f249416b17c893d56386a892ac657edfdffba"
