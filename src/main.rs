@@ -51,6 +51,8 @@ fn say_hello(req: &mut Request) -> IronResult<Response> {
 fn main() {
     env_logger::init().unwrap();
     info!("starting up");
+    const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+    println!("Curtain v{}", VERSION);
 
     let mut router = Router::new();
     router.get("/", say_hello);
