@@ -142,6 +142,11 @@ impl Cache {
         })
     }
 
+    fn test(db_url: &str) -> Result<Platform,DbError> {
+        let pool = try!(ManagedPool::init(db_url, 1));
+        pool.connect()
+    }
+
     fn set_windows(&mut self, windows: Vec<Window>) {
         self.windows = Some(windows);
     }
@@ -149,8 +154,8 @@ impl Cache {
         self.tables = Some(tables);
     }
 
-    pub fn get_connection(&self) -> Platform {
-        self.managed_pool.connect().unwrap()
+    pub fn get_connection(&self) -> Result<Platform, DbError> {
+        self.managed_pool.connect()
     }
 }
 
@@ -216,18 +221,25 @@ impl Context {
     fn get_connection(&self) -> Result<Platform, DbError> {
         let has_cache = self.arc.read().unwrap().has_cache(&self.db_url);// note: need to finish the borrow so that write will not dead lock
         if has_cache {
-            let platform =
-                self.arc.read().unwrap().get_cache(&self.db_url).unwrap().get_connection();
-            return Ok(platform);
+                self.arc.read().unwrap().get_cache(&self.db_url).unwrap().get_connection()
         } else {
-            {
-                // this is important to finish scope of arc and allow further write/read
-                let cache = try!(Cache::new(&self.db_url));
-                let ref mut globals = *self.arc.write().unwrap();
-                let db_url = self.db_url.clone();
-                globals.cache_map.insert(db_url.clone(), cache);
+            match Cache::test(&self.db_url){
+                Err(e) => { 
+                        return Err(DbError::new("Unable to connect to database"))
+                    }
+                Ok(_) => {
+                        // this is important to finish scope of arc and allow further write/read
+                        {
+                        let cache = try!(Cache::new(&self.db_url));
+                        let ref mut globals = *self.arc.write().unwrap();
+                        let db_url = self.db_url.clone();
+                        globals.cache_map.insert(db_url.clone(), cache);
+                        }
+                        println!("No Cache.. retrying connection");
+                        self.get_connection()//try again
+                    }
             }
-            return self.get_connection();//try again
+           
         }
     }
 
@@ -283,6 +295,6 @@ pub fn http_can_db_url_connect(req: &mut Request) -> IronResult<Response> {
     let pool = ManagedPool::init(&context.db_url, 1);
     match pool {
         Ok(pool) => Ok(Response::with((Status::Ok, json::encode(&"OK").unwrap()))),
-        Err(e) => Ok(Response::with((Status::Ok, json::encode(&"Unable to connect DB").unwrap()))),
+        Err(e) => Ok(Response::with((Status::BadRequest, json::encode(&"Unable to connect DB").unwrap()))),
     }
 }

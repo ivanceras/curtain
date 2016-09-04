@@ -3,9 +3,15 @@ name = "curtain"
 version = "0.2.0"
 authors = ["Jovansonlee Cesar <ivanceras@gmail.com>"]
 
+[features]
+standalone = []
+webserver = []
+default = ["webserver"]
 
 [[bin]]
 name = "iron_curtain"
+
+
 
 
 

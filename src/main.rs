@@ -75,9 +75,17 @@ fn main() {
     let mut middleware = Chain::new(router);
     middleware.link(State::<GlobalPools>::both(GlobalPools::new()));
     middleware.link_after(CORS);
-    let host = SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), get_server_port());
-    println!("listening on http://{}", host);
-    Iron::new(middleware).http(host).unwrap();
+    let host = get_server_host();
+    let listen = Iron::new(middleware).http(host);
+    match listen{
+        Ok(listen) => {
+                println!("listensing on {:?}", listen)
+            }
+        Err(e) => {
+                println!("Initialization error {}", e)
+            }
+    }
+
 }
 
 
@@ -98,7 +106,20 @@ impl AfterMiddleware for CORS {
     }
 }
 
+
 fn get_server_port() -> u16 {
     let port_str = env::var("PORT").unwrap_or(String::new());
     FromStr::from_str(&port_str).unwrap_or(3224)
 }
+#[cfg(feature = "webserver")]
+fn get_server_host()-> SocketAddrV4 {
+    SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), get_server_port())
+}
+
+/// when compiling for stand-alone, port will be decided by the OS, by sending arg 0
+/// and the host will be 127.3.3.2 as opposed to common 127.0.0.1
+#[cfg(feature = "standalone")]
+fn get_server_host()-> SocketAddrV4 {
+    SocketAddrV4::new(Ipv4Addr::new(127,0 ,0, 1), 0)
+}
+
