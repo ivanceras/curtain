@@ -375,7 +375,6 @@ fn apply_changeset_to_main_table(context: &mut Context,
         }
         println!("-->>> There are {} DAO's to be deleted",
                  changeset.deleted.len());
-        let mut error_deleting = vec![];
         for ref delete in &changeset.deleted {
             // determine if the table properties which decides
             // whether to delete its referring record
@@ -392,10 +391,7 @@ fn apply_changeset_to_main_table(context: &mut Context,
             let result = delete_dao(context, main_tab_table, delete);
             match result {
                 Ok(result) => println!("DELETED: {:?}", result),
-                Err(e) => {
-                    println!("ERROR in deleting dao : {}", e),
-                    error_deleting.push(delete);
-                }
+                Err(e) => println!("ERROR in deleting dao : {}", e),
             }
         }
         for ref update in &changeset.updated {
@@ -499,14 +495,15 @@ fn delete_dao_with_filter(context: &mut Context,
     query.execute(context.db()?)
 }
 
-fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<usize, DbError> {
+fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<(), DbError> {
     let &(ref tab, ref table) = tab_table;
     let filters = create_filter_from_dao(&table, dao);
     let mut query = Query::delete();
     query.from(table);
     query.add_filters(&filters);
     let result = query.execute(context.db()?);
-    result
+    println!("result: {:?}", result);
+    Ok(())
 }
 
 fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao, DbError> {
