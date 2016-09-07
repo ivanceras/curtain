@@ -45,7 +45,14 @@ pub fn json_update_data(context: &mut Context,
                         body: &str)
                         -> Result<String, String> {
     match app_service::app_api::update_data(context, main_table, body) {
-        Ok(()) => Ok(format!("OK")),
+        Ok(response) => {
+            let json = if config::PRETTY_JSON {
+                format!("{}", json::as_pretty_json(&response))
+            } else {
+                json::encode(&response).unwrap()
+            };
+            Ok(json)
+        }
         Err(e) => Err(format!("{:?}", e)),
     }
 

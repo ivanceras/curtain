@@ -179,19 +179,22 @@ fn retrieve_data_from_focused_dao(context: &mut Context,
 pub fn update_data(context: &mut Context,
                    main_table: &str,
                    updatable_data: &str)
-                   -> Result<(), ServiceError> {
+                   -> Result<Vec<UpdateResponse>, ServiceError> {
     println!("received update data: {}", updatable_data);
     if updatable_data.trim().is_empty() {
         return Err(ServiceError::from(ParamError::new("empty updatable data")));
     } else {
-        let changeset: Result<Vec<ChangeSet>, DecoderError> = json::decode(updatable_data);
+        let changeset: Result<Vec<Changeset>, DecoderError> = json::decode(updatable_data);
         match changeset {
             Ok(changeset) => {
                 let window = window_api::retrieve_window(context, main_table);
                 match window {
                     Ok(window) => {
-                        apply_data_changeset(context, &window, &changeset)?;
-                        return Ok(());
+                        let result = apply_data_changeset(context, &window, &changeset);
+                        match result{
+                            Ok(result) => Ok(result),
+                            Err(e) => Err(ServiceError::from(e))
+                        }
                     }
                     Err(e) => {
                         return Err(ServiceError::from(e));
@@ -203,7 +206,6 @@ pub fn update_data(context: &mut Context,
             }
         }
     }
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -262,36 +264,35 @@ fn extract_window_tables(context: &mut Context,
 /// for each table on this window, get their corresponding changeset and apply each changeset accordingly
 fn apply_data_changeset(context: &mut Context,
                         window: &Window,
-                        changesets: &Vec<ChangeSet>)
-                        -> Result<(), DbError> {
+                        changesets: &Vec<Changeset>)
+                        -> Result<Vec<UpdateResponse>, DbError> {
     println!("-->applying changeset {:?}", changesets);
     let window_tables = match extract_window_tables(context, window) {
         Ok(window_tables) => {
-            let updated_inserts =
-                apply_changeset_to_main_table(context, &window_tables.main_table, changesets);
-            match updated_inserts {
-                Ok(updated_inserts) => {
-                    println!("changeset to main table applied");
-                }
-                Err(e) => {
-                    println!("There is something wrong applying changesets to main table: {}",
-                             e);
-                }
-            }
-            apply_changeset_to_direct_tables(context,
-                                             &window_tables.main_table,
-                                             &window_tables.ext_tables,
-                                             changesets);
-            apply_changeset_to_indirect_tables(context,
-                                               &window_tables.main_table,
-                                               &window_tables.has_many_indirect,
-                                               changesets);
+            let main_updates:Vec<UpdateResponse> =
+                apply_changeset_to_main_table(context, &window_tables.main_table, changesets)?;
+            let direct_updates =
+                apply_changeset_to_direct_tables(context,
+                                                 &window_tables.main_table,
+                                                 &window_tables.ext_tables,
+                                                 changesets)?;
+            let indirect_updates = 
+                apply_changeset_to_indirect_tables(context,
+                                                   &window_tables.main_table,
+                                                   &window_tables.has_many_indirect,
+                                                   changesets)?;
+            let mut update_response = vec![];
+                update_response.extend(main_updates);
+                update_response.extend(direct_updates);
+                update_response.extend(indirect_updates);
+                
+                return Ok(vec![]);
         }
         Err(e) => {
             return Err(DbError::new("no window tables"));
         }
     };
-    Ok(())
+    Ok(vec![])
 }
 
 /// only owned direct table will be updated on this place since
@@ -299,8 +300,8 @@ fn apply_data_changeset(context: &mut Context,
 fn apply_changeset_to_direct_tables(context: &mut Context,
                                     main_table: &(Tab, Table),
                                     direct_tables: &Vec<(Tab, Table)>,
-                                    changesets: &Vec<ChangeSet>)
-                                    -> Result<(), DbError> {
+                                    changesets: &Vec<Changeset>)
+                                    -> Result<Vec<UpdateResponse>, DbError> {
     println!("applying changeset to direct tables...");
     for &(ref direct_tab, ref direct) in direct_tables {
         let changeset = changesets.find(&direct.complete_name());
@@ -310,7 +311,7 @@ fn apply_changeset_to_direct_tables(context: &mut Context,
             println!("------------>>>> No direct changeset");
         }
     }
-    Ok(())
+    Ok(vec![])
 }
 
 
@@ -318,8 +319,8 @@ fn apply_changeset_to_direct_tables(context: &mut Context,
 fn apply_changeset_to_indirect_tables(context: &mut Context,
                                       main_tab_table: &(Tab, Table),
                                       indirect_tables: &Vec<(Tab, Table, Table)>,
-                                      changesets: &Vec<ChangeSet>)
-                                      -> Result<(), DbError> {
+                                      changesets: &Vec<Changeset>)
+                                      -> Result<Vec<UpdateResponse>, DbError> {
     let &(ref main_tab, ref main_table) = main_tab_table;
     println!("---->>>>>>>> INDIRECT TABLES <<<<<<<--------");
     println!("applying changeset to indirect tables..");
@@ -342,7 +343,7 @@ fn apply_changeset_to_indirect_tables(context: &mut Context,
             println!("----->>>No indirect changeset");
         }
     }
-    Ok(())
+    Ok(vec![])
 }
 
 fn insert_dao_to_linker(context: &mut Context,
@@ -356,8 +357,8 @@ fn insert_dao_to_linker(context: &mut Context,
 
 fn apply_changeset_to_main_table(context: &mut Context,
                                  main_tab_table: &(Tab, Table),
-                                 changesets: &Vec<ChangeSet>)
-                                 -> Result<Vec<DaoInsert>, DbError> {
+                                 changesets: &Vec<Changeset>)
+                                 -> Result<Vec<UpdateResponse>, DbError> {
     println!("applying changeset to main table: {:?}", changesets);
     let &(ref main_tab, ref main_table) = main_tab_table;
     let changeset = changesets.find(&main_table.name);//TODO: should employ smarter matching
@@ -400,7 +401,7 @@ fn apply_changeset_to_main_table(context: &mut Context,
         }
     }
     println!("updated inserts: {:#?}", updated_inserts);
-    Ok(updated_inserts)
+    Ok(vec![])
 }
 
 fn delete_records_in_extension_tables(context: &mut Context, main_table: &Table, dao: &Dao) {
@@ -1276,11 +1277,26 @@ impl SearchDaoInsert for Vec<DaoInsert> {
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(RustcDecodable)]
-pub struct ChangeSet {
+pub struct Changeset {
     pub table: String,
     pub inserted: Vec<DaoInsert>,
     pub deleted: Vec<Dao>, /* if in has_many, delete the record, if has_many indirect, delete the linker record (and? as well together with the indirect record)?? if still referred by some other table */
     pub updated: Vec<DaoUpdate>, /* it's primary key value stay in change so no worry about reference errors, updates on has_many and has_many indirect may not be allowed */
+}
+
+
+#[derive(Debug)]
+#[derive(RustcEncodable)]
+#[derive(RustcDecodable)]
+pub struct UpdateResponse {
+    pub table: String,
+    pub inserted: Vec<Dao>,
+    pub insert_error: Vec<(Dao, String)>,
+    pub deleted_count: usize,
+    pub delete_error: Vec<(Dao, String)>,
+    pub updated: Vec<Dao>,
+    pub update_error: Vec<(Dao, String)>,
+    pub total_records: usize
 }
 
 
@@ -1289,10 +1305,10 @@ trait Search {
     fn find(&self, needle: &str) -> Option<&Self::Output>;
 }
 
-impl Search for Vec<ChangeSet> {
-    type Output = ChangeSet;
+impl Search for Vec<Changeset> {
+    type Output = Changeset;
 
-    fn find(&self, table: &str) -> Option<&ChangeSet> {
+    fn find(&self, table: &str) -> Option<&Changeset> {
         for cs in self {
             if table == cs.table {
                 return Some(cs);
