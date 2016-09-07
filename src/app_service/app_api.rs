@@ -495,7 +495,7 @@ fn delete_dao_with_filter(context: &mut Context,
     query.execute(context.db()?)
 }
 
-fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<(), DbError> {
+fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<usize, DbError> {
     let &(ref tab, ref table) = tab_table;
     let filters = create_filter_from_dao(&table, dao);
     let mut query = Query::delete();
@@ -503,7 +503,7 @@ fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
     query.add_filters(&filters);
     let result = query.execute(context.db()?);
     println!("result: {:?}", result);
-    Ok(())
+    result
 }
 
 fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao, DbError> {
