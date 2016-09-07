@@ -285,8 +285,7 @@ fn apply_data_changeset(context: &mut Context,
                 update_response.extend(main_updates);
                 update_response.extend(direct_updates);
                 update_response.extend(indirect_updates);
-                
-                return Ok(vec![]);
+                return Ok(update_response);
         }
         Err(e) => {
             return Err(DbError::new("no window tables"));
@@ -376,7 +375,10 @@ fn apply_changeset_to_main_table(context: &mut Context,
         }
         println!("-->>> There are {} DAO's to be deleted",
                  changeset.deleted.len());
-        for ref delete in &changeset.deleted {
+
+        let mut deleted = vec![];
+        let mut delete_error = vec![];
+        for delete in &changeset.deleted {
             // determine if the table properties which decides
             // whether to delete its referring record
             // when this dao is referred, and the referring table is an extension table
@@ -391,14 +393,30 @@ fn apply_changeset_to_main_table(context: &mut Context,
 
             let result = delete_dao(context, main_tab_table, delete);
             match result {
-                Ok(result) => println!("DELETED: {:?}", result),
-                Err(e) => println!("ERROR in deleting dao : {}", e),
+                Ok(result) => {
+                    deleted.push(delete.clone());
+                }
+                Err(e) => {
+                    delete_error.push((delete.clone(), format!("{}",e)))
+                }
             }
         }
         for ref update in &changeset.updated {
             println!("update: {:#?}", update);
             update_dao(context, &main_tab_table, update)?;
         }
+        let update_response = 
+            UpdateResponse{
+                 deleted: deleted,
+                 delete_error: delete_error,
+                 updated: vec![],
+                 update_error: vec![],
+                 inserted: vec![],
+                 insert_error: vec![],
+                 table: main_table.name.to_owned(),
+                 total_records: 0
+             };
+        return Ok(vec![update_response])
     }
     println!("updated inserts: {:#?}", updated_inserts);
     Ok(vec![])
@@ -1292,7 +1310,7 @@ pub struct UpdateResponse {
     pub table: String,
     pub inserted: Vec<Dao>,
     pub insert_error: Vec<(Dao, String)>,
-    pub deleted_count: usize,
+    pub deleted: Vec<Dao>,
     pub delete_error: Vec<(Dao, String)>,
     pub updated: Vec<Dao>,
     pub update_error: Vec<(Dao, String)>,
