@@ -5,9 +5,8 @@
 
 Curtain is yet another Database administration tool using modern front-end and back-end platforms
 
-![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/curtain-elm.png)
+![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/users.png)
 
-Long:
 
 ## Online Demo
 
