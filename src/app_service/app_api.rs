@@ -405,6 +405,7 @@ fn apply_changeset_to_main_table(context: &mut Context,
             println!("update: {:#?}", update);
             update_dao(context, &main_tab_table, update)?;
         }
+        let total_records = try!(get_total_records(context, main_table));
         let update_response = 
             UpdateResponse{
                  deleted: deleted,
@@ -414,12 +415,33 @@ fn apply_changeset_to_main_table(context: &mut Context,
                  inserted: vec![],
                  insert_error: vec![],
                  table: main_table.name.to_owned(),
-                 total_records: 0
+                 total_records: total_records
              };
         return Ok(vec![update_response])
     }
     println!("updated inserts: {:#?}", updated_inserts);
     Ok(vec![])
+}
+
+
+fn get_total_records(context: &mut Context, table: &Table)-> Result<usize, DbError> {
+    let mut query = Query::new();
+    query.column("COUNT(*) as COUNT");
+    query.from(table);
+    let result = query.retrieve_one(context.db()?)?;
+    match result{
+        Some(result) => {
+            let count = result.get("count");
+            match count {
+                Some(&Value::U64(v)) => Ok(v as usize),
+                Some(&Value::I64(v)) => Ok(v as usize),
+                Some(&Value::U32(v)) => Ok(v as usize),
+                Some(&Value::I32(v)) => Ok(v as usize),
+                _ => Err(DbError::new("error converting"))
+            }
+        },
+        None => Err(DbError::new("Can't get count"))
+    }
 }
 
 fn delete_records_in_extension_tables(context: &mut Context, main_table: &Table, dao: &Dao) {
