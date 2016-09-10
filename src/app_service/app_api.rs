@@ -107,7 +107,7 @@ fn retrieve_main_data(context: &mut Context,
     if mquery.get_range().limit.is_none() {
         mquery.set_limit(config::default_page_size);
     }
-    let main_debug = mquery.debug_build(context.db().unwrap());
+    let main_debug = mquery.debug_build(context.db()?);
     let main_dao_result = {
         let db = match context.db() {
             Ok(db) => db,
@@ -180,7 +180,6 @@ pub fn update_data(context: &mut Context,
                    main_table: &str,
                    updatable_data: &str)
                    -> Result<Vec<UpdateResponse>, ServiceError> {
-    println!("received update data: {}", updatable_data);
     if updatable_data.trim().is_empty() {
         return Err(ServiceError::from(ParamError::new("empty updatable data")));
     } else {
@@ -266,7 +265,6 @@ fn apply_data_changeset(context: &mut Context,
                         window: &Window,
                         changesets: &Vec<Changeset>)
                         -> Result<Vec<UpdateResponse>, DbError> {
-    println!("-->applying changeset {:?}", changesets);
     let window_tables = match extract_window_tables(context, window) {
         Ok(window_tables) => {
             let main_updates:Vec<UpdateResponse> =
@@ -645,8 +643,9 @@ fn retrieve_data_from_direct_tabs(context: &mut Context,
             }
         };
         let mut query = build_query(&main_table, &table, &main_with_focused_filter, rest_vquery);
-        let debug = query.debug_build(context.db().unwrap());
-        match query.retrieve(context.db().unwrap()) {
+        let debug = query.debug_build(context.db()?);
+        println!("-->> DIRECT TAB SQL {}", debug);
+        match query.retrieve(context.db()?) {
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result, &table.complete_name());
                 tabs_table_dao.push(table_dao);
@@ -692,8 +691,9 @@ fn retrieve_data_from_indirect_tabs(context: &mut Context,
                                                     &linker_table,
                                                     rest_vquery);
 
-        let debug = ind_query.debug_build(context.db().unwrap());
-        match ind_query.retrieve(context.db().unwrap()) {
+        let debug = ind_query.debug_build(context.db()?);
+        println!("-->> INDIRECT TAB SQL {}", debug);
+        match ind_query.retrieve(context.db()?) {
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result,
                                                           &indirect_table.complete_name());
@@ -844,10 +844,8 @@ fn match_needle(dao: &Dao, needle: &BTreeMap<String, Value>) -> bool {
         if let Some(needle_value) = needle_value {
             if let Some(dao_value) = dao_value {
                 if needle_value == dao_value {
-                    println!("we have a match here");
                     matches += 1;
                 } else {
-                    println!("1 key didnt match");
                     return false;
                 }
             }
@@ -1186,7 +1184,6 @@ impl DaoUpdate {
         let mut changeset = Dao::new();
         let keys = self.original.keys();
         for key in keys {
-            println!("key: {:?}", key);
             let updated_value = self.updated.get(key);
             let orig_value = self.original.get(key);
             if updated_value == orig_value {
