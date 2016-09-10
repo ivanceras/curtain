@@ -966,38 +966,13 @@ fn create_filter_from_dao(table: &Table, focused_dao: &Dao) -> Vec<Filter> {
     filters
 }
 
-#[derive(Debug)]
-#[derive(RustcEncodable)]
-#[derive(Clone)]
-struct DaoState {
-    focused: bool,
-    dao: Dao,
-}
-
-impl DaoState {
-    fn from_dao(dao: Dao) -> Self {
-        DaoState {
-            focused: false,
-            dao: dao,
-        }
-    }
-
-    fn from_dao_result(dao_result: &DaoResult) -> Vec<Self> {
-        let mut dao_states = vec![];
-        for dao in &dao_result.dao {
-            let ds = DaoState::from_dao(dao.clone());
-            dao_states.push(ds)
-        }
-        dao_states
-    }
-}
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
 #[derive(Clone)]
 pub struct TableDao {
     table: String,
-    dao_list: Vec<DaoState>,
+    dao_list: Vec<Dao>,
     /// the page of the current fetch
     page: Option<usize>,
     /// page size of this fetch
@@ -1012,7 +987,7 @@ impl TableDao {
     fn from_dao_result(dao_result: &DaoResult, table_name: &str) -> Self {
         TableDao {
             table: table_name.to_owned(),
-            dao_list: DaoState::from_dao_result(dao_result),
+            dao_list: dao_result.dao.to_owned(),
             page: dao_result.page,
             page_size: dao_result.page_size,
             total: dao_result.total,
@@ -1150,22 +1125,6 @@ enum FocusParam {
     PrimaryBlob(String),
 }
 
-
-fn mark_focused_record(dao_list: &Vec<Dao>, focused_dao: &Dao) -> Vec<DaoState> {
-    let mut dao_states = vec![];
-    for dao in dao_list {
-        if dao == focused_dao {
-            let dao_state = DaoState {
-                focused: true,
-                dao: dao.clone(),
-            };
-            dao_states.push(dao_state);
-        } else {
-            dao_states.push(DaoState::from_dao(dao.clone()));
-        }
-    }
-    dao_states
-}
 
 
 /// when a dao is updated
