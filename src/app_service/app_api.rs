@@ -412,7 +412,7 @@ fn apply_changeset_to_main_table(context: &mut Context,
                  update_error: vec![],
                  inserted: vec![],
                  insert_error: vec![],
-                 table: main_table.name.to_owned(),
+                 table: main_table.complete_name(), // always use complete names in responses
                  total_records: total_records
              };
         return Ok(vec![update_response])

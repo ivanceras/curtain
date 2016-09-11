@@ -228,7 +228,7 @@ impl Field {
                 self.significance_priority = Some(40);
                 self.seq_no = 230;
                 self.is_displayed = true;
-                self.display_length = Some(100);
+                self.display_length = Some(250);
                 self.is_readonly = false;
                 self.is_auxilliary = false;
                 self
