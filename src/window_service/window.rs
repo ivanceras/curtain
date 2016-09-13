@@ -193,6 +193,37 @@ impl Field {
                 self
             }
 
+            "username" => {
+                self.is_significant = true;
+                self.significance_priority = Some(10);
+                self.seq_no = 170;
+                self.is_displayed = true;
+                self.display_length = Some(20);
+                self.is_readonly = false;
+                self.is_auxilliary = false;
+                self
+            }
+            "password" => {
+                self.is_significant = true;
+                self.significance_priority = Some(10);
+                self.seq_no = 189;
+                self.is_displayed = true;
+                self.display_length = Some(20);
+                self.is_readonly = false;
+                self.is_auxilliary = false;
+                self
+            }
+
+            "email" => {
+                self.is_significant = true;
+                self.significance_priority = Some(10);
+                self.seq_no = 190;
+                self.is_displayed = true;
+                self.display_length = Some(20);
+                self.is_readonly = false;
+                self.is_auxilliary = false;
+                self
+            }
             "name" => {
                 self.is_significant = true;
                 self.significance_priority = Some(10);
