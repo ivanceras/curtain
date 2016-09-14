@@ -9,6 +9,7 @@ extern crate rustc_serialize;
 extern crate rand;
 #[macro_use]
 extern crate log;
+extern crate log4rs;
 extern crate env_logger;
 extern crate unicase;
 extern crate uuid;
@@ -49,8 +50,10 @@ fn say_hello(req: &mut Request) -> IronResult<Response> {
 }
 
 fn main() {
-    env_logger::init().unwrap();
+    //env_logger::init().unwrap();
+    log4rs::init_file("config/log4rs.yaml", Default::default()).unwrap();
     info!("starting up");
+    warn!("warning example...");
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
     println!("Curtain v{}", VERSION);
 
@@ -92,7 +95,12 @@ fn main() {
 struct CORS;
 
 impl AfterMiddleware for CORS {
-    fn after(&self, _: &mut Request, mut res: Response) -> IronResult<Response> {
+    fn after(&self, req: &mut Request, mut res: Response) -> IronResult<Response> {
+        let path = req.url.path.connect("/");
+        warn!("warning has the request been served? {}", path);
+        error!("an error has occured {}", path);
+        trace!("tracing..{}",path);
+        debug!("Debugging... {}",path);
         res.headers.set(headers::AccessControlAllowOrigin::Any);
         res.headers.set(headers::AccessControlAllowHeaders(vec![UniCase("accept".to_owned()),
                                                                 UniCase("content-type"

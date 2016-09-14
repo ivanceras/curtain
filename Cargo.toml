@@ -26,6 +26,7 @@ router = "0.1"
 persistent = "0.1"
 rand = "0.3"
 log = "0.3"
+log4rs = {version = "0.4", features = ["yaml"]}
 env_logger = "0.3"
 unicase = "1.4"
 chrono = {version = "0.2", features = ["rustc-serialize"]}
