@@ -3,7 +3,7 @@
 [![Build Status](https://api.travis-ci.org/ivanceras/curtain.svg)](https://travis-ci.org/ivanceras/curtain)
 
 
-Curtain is yet another Database administration tool using modern front-end and back-end platforms
+Curtain is a data management system for PostgreSQL using the best of current technology.
 
 ![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/users.png)
 
