@@ -2,6 +2,7 @@
 
 [![Build Status](https://api.travis-ci.org/ivanceras/curtain.svg)](https://travis-ci.org/ivanceras/curtain)
 
+## Warning: Early Alpha Status, use in production at your own risk
 
 Curtain is a data management system for PostgreSQL using the best of current technology.
 
