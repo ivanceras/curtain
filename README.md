@@ -54,5 +54,5 @@ If you would like to support my project
 [Gratipay](https://gratipay.com/~ivanceras/)
 [twitter: @ivanceras](https://twitter.com/ivanceras)
 
-Contact me: ivanceras[at]gmail.com (Currently looking for rust job)
+Contact me: ivanceras[at]gmail.com
 
