@@ -2,10 +2,14 @@
 
 [![Build Status](https://api.travis-ci.org/ivanceras/curtain.svg)](https://travis-ci.org/ivanceras/curtain)
 
+## Warning: Early Alpha Status, use in production at your own risk
 
-Curtain is yet another Database administration tool using modern front-end and back-end platforms
+Curtain is a data management system for PostgreSQL using the best of current technology.
 
 ![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/users.png)
+
+## Screencast
+[link1](https://gfycat.com/GlossyDownrightBorderterrier) [link2](http://s1.webmshare.com/BXZxE.webm)
 
 
 ## Online Demo
