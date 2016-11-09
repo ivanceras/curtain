@@ -51,7 +51,10 @@ fn say_hello(req: &mut Request) -> IronResult<Response> {
 
 fn main() {
     //env_logger::init().unwrap();
-    log4rs::init_file("config/log4rs.yaml", Default::default()).unwrap();
+    match log4rs::init_file("config/log4rs.yaml", Default::default()){
+        Ok(_) => {println!("Loggin initiated..");}
+        Err(e) => {println!("Something wrong in loggin.. {:?}", e);}
+    }
     info!("starting up");
     warn!("warning example...");
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
