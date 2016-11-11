@@ -363,13 +363,21 @@ fn apply_changeset_to_main_table(context: &mut Context,
              &main_table.complete_name(),
              changeset);
     let mut updated_inserts: Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
+    let mut insert_error = vec![];
     if let Some(changeset) = changeset {
         println!("main changeset: {:?}", changeset);
         for ref insert in &changeset.inserted {
             println!("inserts: {:#?}", insert);
-            let result: Dao = insert_dao(context, &main_tab_table, &insert.dao)?;
-            let updated_insert = DaoInsert::update_from_inserted_dao(&insert, &result);
-            updated_inserts.push(updated_insert);
+            let result = insert_dao(context, &main_tab_table, &insert.dao);
+            match result{
+                Ok(result) => {
+                    let updated_insert = DaoInsert::update_from_inserted_dao(&insert, &result);
+                    updated_inserts.push(updated_insert);
+                }
+                Err(e) => {
+                    insert_error.push((insert.dao.clone(), format!("{}", e)));
+                }
+            }
         }
         println!("-->>> There are {} DAO's to be deleted",
                  changeset.deleted.len());
@@ -399,16 +407,33 @@ fn apply_changeset_to_main_table(context: &mut Context,
                 }
             }
         }
+        let mut all_updated = vec![];
+        let mut update_error = vec![];
         for ref update in &changeset.updated {
             println!("update: {:#?}", update);
-            update_dao(context, &main_tab_table, update)?;
+            let dao = update_dao(context, &main_tab_table, update);
+            match dao{
+                Ok(dao) => {
+                    match dao{
+                        Some(dao) => {
+                            all_updated.push(dao);
+                        },
+                        None => {
+                            update_error.push((update.clone(), "Nothing is updated".to_string()))
+                        }
+                    }
+                },
+                Err(e) => {
+                    update_error.push((update.clone(), format!("{}", e)));
+                }
+            }
         }
         let total_records = try!(get_total_records(context, main_table));
         let update_response = 
             UpdateResponse{
                  deleted: deleted,
                  delete_error: delete_error,
-                 updated: vec![],
+                 updated: all_updated,
                  update_error: vec![],
                  inserted: vec![],
                  insert_error: vec![],
