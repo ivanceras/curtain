@@ -37,6 +37,7 @@ pub fn focused_record(context: &mut Context,
     let validator = DbElementValidator::from_context(context);
     println!("url query: {:?}", url_query);
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
+    println!("filter: {:#?}", rest_table_filter);
     let main_validated = main_table_filter.transform(context, &validator);
     match main_validated {
         Ok(main_validated) => {
@@ -63,7 +64,9 @@ pub fn complex_query(context: &mut Context,
                      url_query: &Option<String>)
                      -> Result<Vec<TableDao>, ServiceError> {
     let validator = DbElementValidator::from_context(context);
+    println!("url_query: {:?}", url_query);
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
+    println!("filter: {:#?}", rest_table_filter);
     let main_validated = main_table_filter.transform(context, &validator);
     match main_validated {
         Ok(main_validated) => {
@@ -362,7 +365,7 @@ fn apply_changeset_to_main_table(context: &mut Context,
     println!("Finding change set for {} there is----->>> {:?}",
              &main_table.complete_name(),
              changeset);
-    let mut updated_inserts: Vec<DaoInsert> = vec![];// this is a list of updated insert with their primary keys set in the db
+    let mut inserted_dao = vec![];// this is a list of updated insert with their primary keys set in the db
     let mut insert_error = vec![];
     if let Some(changeset) = changeset {
         println!("main changeset: {:?}", changeset);
@@ -372,7 +375,7 @@ fn apply_changeset_to_main_table(context: &mut Context,
             match result{
                 Ok(result) => {
                     let updated_insert = DaoInsert::update_from_inserted_dao(&insert, &result);
-                    updated_inserts.push(updated_insert);
+                    inserted_dao.push(updated_insert.dao);
                 }
                 Err(e) => {
                     insert_error.push((insert.dao.clone(), format!("{}", e)));
@@ -408,10 +411,11 @@ fn apply_changeset_to_main_table(context: &mut Context,
             }
         }
         let mut all_updated = vec![];
-        let mut update_error = vec![];
+        let mut update_error:Vec<(Dao,String)> = vec![];
         for ref update in &changeset.updated {
             println!("update: {:#?}", update);
             let dao = update_dao(context, &main_tab_table, update);
+            println!("after update dao");
             match dao{
                 Ok(dao) => {
                     match dao{
@@ -419,14 +423,15 @@ fn apply_changeset_to_main_table(context: &mut Context,
                             all_updated.push(dao);
                         },
                         None => {
-                            update_error.push((update.clone(), "Nothing is updated".to_string()))
+                            update_error.push((update.updated.clone(), "Nothing is updated".to_string()))
                         }
                     }
                 },
                 Err(e) => {
-                    update_error.push((update.clone(), format!("{}", e)));
+                    update_error.push((update.updated.clone(), format!("{}", e)));
                 }
             }
+            println!("after match");
         }
         let total_records = try!(get_total_records(context, main_table));
         let update_response = 
@@ -434,15 +439,14 @@ fn apply_changeset_to_main_table(context: &mut Context,
                  deleted: deleted,
                  delete_error: delete_error,
                  updated: all_updated,
-                 update_error: vec![],
-                 inserted: vec![],
-                 insert_error: vec![],
+                 update_error: update_error,
+                 inserted: inserted_dao,
+                 insert_error: insert_error,
                  table: main_table.complete_name(), // always use complete names in responses
                  total_records: total_records
              };
         return Ok(vec![update_response])
     }
-    println!("updated inserts: {:#?}", updated_inserts);
     Ok(vec![])
 }
 
@@ -583,6 +587,8 @@ fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
     query.return_all();
     match context.db() {
         Ok(db) => {
+            let debug = query.debug_build(db);
+            println!("DEBUG SQL: {}", debug);
             let dao: Result<Option<Dao>, DbError> = query.retrieve_one(db);
             println!("inserted dao: {:?}", dao);
             match dao {
