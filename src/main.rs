@@ -101,7 +101,6 @@ impl AfterMiddleware for CORS {
     fn after(&self, req: &mut Request, mut res: Response) -> IronResult<Response> {
         let path = req.url.path.connect("/");
         warn!("warning has the request been served? {}", path);
-        error!("an error has occured {}", path);
         trace!("tracing..{}",path);
         debug!("Debugging... {}",path);
         res.headers.set(headers::AccessControlAllowOrigin::Any);

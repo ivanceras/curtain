@@ -174,7 +174,6 @@ impl Field {
     fn update_field_info(mut self, column: &Column, table: &Table) -> Field {
         match column.name.as_ref() {
             "client" => {
-                println!("client matched...");
                 self.is_significant = false;
                 self.seq_no = 100;
                 self.is_displayed = false;
@@ -194,14 +193,25 @@ impl Field {
             }
 
             "username" => {
-                self.is_significant = true;
-                self.significance_priority = Some(10);
-                self.seq_no = 170;
-                self.is_displayed = true;
-                self.display_length = Some(20);
-                self.is_readonly = false;
-                self.is_auxilliary = false;
-                self
+                if table.name == "users" || table.name == "user"{
+                    self.is_significant = true;
+                    self.significance_priority = Some(10);
+                    self.seq_no = 10;
+                    self.is_displayed = true;
+                    self.display_length = Some(20);
+                    self.is_readonly = false;
+                    self.is_auxilliary = false;
+                    self
+                }else{
+                    self.is_significant = true;
+                    self.significance_priority = Some(10);
+                    self.seq_no = 170;
+                    self.is_displayed = true;
+                    self.display_length = Some(20);
+                    self.is_readonly = false;
+                    self.is_auxilliary = false;
+                    self
+                }
             }
             "password" => {
                 self.is_significant = true;
@@ -240,6 +250,26 @@ impl Field {
                 self.seq_no = 210;
                 self.is_displayed = true;
                 self.display_length = Some(20);
+                self.is_readonly = false;
+                self.is_auxilliary = false;
+                self
+            }
+            "title" => {
+                self.is_significant = true;
+                self.significance_priority = Some(20);
+                self.seq_no = 90;
+                self.is_displayed = true;
+                self.display_length = Some(30);
+                self.is_readonly = false;
+                self.is_auxilliary = false;
+                self
+            }
+            "content" => {
+                self.is_significant = true;
+                self.significance_priority = Some(20);
+                self.seq_no = 110;
+                self.is_displayed = true;
+                self.display_length = Some(300);
                 self.is_readonly = false;
                 self.is_auxilliary = false;
                 self
