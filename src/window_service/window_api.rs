@@ -7,6 +7,10 @@ use error::ParamError;
 use rustorm::database::DatabaseDev;
 
 
+/// disabled at first release
+static INCLUDE_HAS_MANY: bool = false;
+
+
 /// try retrieving tables from cache, if none, then from db and cache it
 pub fn get_tables(context: &mut Context) -> Vec<Table> {
     let has_cache = context.has_cached_tables();
@@ -177,7 +181,7 @@ pub fn extract_windows(tables: &Vec<Table>) -> Vec<Window> {
 
 /// list a sumamary of window tables
 pub fn list_windows_summary(tables: &Vec<Table>) -> Vec<Window> {
-    let window_tables = window_tables(tables);
+    let window_tables = window_tables(&tables);
     let mut window_list = vec![];
     for t in window_tables {
         let window = Window::summary_from_table(&t, tables);
@@ -186,16 +190,24 @@ pub fn list_windows_summary(tables: &Vec<Table>) -> Vec<Window> {
     window_list
 }
 
-///
-/// return the list of tables that has a window
-///
-fn window_tables(tables: &Vec<Table>) -> Vec<Table> {
+fn window_tables(tables: &Vec<Table>) -> Vec<Table>{
     let table_tally = get_table_tally(tables);
     let sorted_tables: Vec<Table> =
         table_tally.iter().map(|&(table, tally)| table.clone()).collect();
+    if INCLUDE_HAS_MANY {
+        get_window_tables(&sorted_tables)
+    } else {
+       sorted_tables
+    }
+}
+
+///
+/// return the list of tables that has a window
+///
+fn get_window_tables(tables: &Vec<Table>) -> Vec<Table> {
     let mut window_tables = Vec::new();
     let all_extension_tables = get_all_extension_tables(tables);
-    for t in sorted_tables {
+    for t in tables {
         if t.is_linker_table() {
             info!("NOT a Window: {} <<-linker table", t.name);
         } else {

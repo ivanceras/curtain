@@ -68,6 +68,7 @@ pub fn complex_query(context: &mut Context,
     let (main_table_filter, rest_table_filter) = parse_complex_url_query(main_table, url_query);
     println!("filter: {:#?}", rest_table_filter);
     let main_validated = main_table_filter.transform(context, &validator);
+    //println!("main validated: {:#?}", main_validated);
     match main_validated {
         Ok(main_validated) => {
             let mut rest_validated = vec![];
@@ -79,8 +80,11 @@ pub fn complex_query(context: &mut Context,
                     Err(e) => (),
                 }
             }
+            println!("main validated query: {:#?}", main_validated);
+            println!("res_validated query: {:#?}", rest_validated);
             let rest_data: Result<Vec<TableDao>, ServiceError> =
                 retrieve_main_data(context, &main_validated, &rest_validated);
+            println!("rest_data: {:#?}", rest_data);
             rest_data
         }
         Err(e) => Err(ServiceError::from(e)), 
@@ -118,6 +122,8 @@ fn retrieve_main_data(context: &mut Context,
                 return Err(ServiceError::from(e));
             }
         };
+        let debug_sql = mquery.debug_build(db);
+        println!("DEBUG SQL: {}", debug_sql);
         match mquery.retrieve(db) {
             Ok(main_dao_result) => main_dao_result,
             Err(e) => {
@@ -655,6 +661,23 @@ fn parse_complex_url_query(main_table: &str,
     (main_table_filter, rest_table_filter)
 }
 
+#[test]
+fn test_parse_simple_query(){
+    let url_query = "price=gt.100.012e-10&order_by=product.seq_no&group_by=product.seq_no&limit=10".to_string();
+    let (main_filter, rest_filter) = parse_complex_url_query("product", &Some(url_query));
+    println!("main filter: {:#?}", main_filter);
+    println!("rest filter: {:#?}", rest_filter);
+    assert_eq!(rest_filter.len(), 0);
+}
+
+#[test]
+fn test_parse_complex_query(){
+    let url_query = "price=gt.100.012e-10&order_by=product.seq_no&limit=10&focused=3/category?category.name=eq.accessories&order_by=name.asc.nullsfirst&focused=0".to_string();
+    let (main_filter, rest_filter) = parse_complex_url_query("product", &Some(url_query));
+    println!("main filter: {:#?}", main_filter);
+    println!("rest filter: {:#?}", rest_filter);
+    assert_eq!(rest_filter.len(), 1);
+}
 
 
 
