@@ -8,6 +8,8 @@ Curtain is a data management system for PostgreSQL using the best of current tec
 
 ![](https://raw.githubusercontent.com/ivanceras/curtain/master/screenshots/users.png)
 
+##[Alpha builds](https://github.com/ivanceras/curtain-releases)
+
 ## Screencast
 [link1](https://gfycat.com/GlossyDownrightBorderterrier) [link2](http://s1.webmshare.com/BXZxE.webm)
 
