@@ -185,6 +185,7 @@ impl FromEquality for iq::Equality {
             iq::Equality::ILIKE => Equality::ILIKE, //
             iq::Equality::IS => Equality::IS_NULL, //[FIXME]
             iq::Equality::IS_NOT => Equality::IS_NOT_NULL, //[FIXME]
+            iq::Equality::ST => Equality::LIKE
         }
     }
 }

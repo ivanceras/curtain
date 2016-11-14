@@ -28,6 +28,7 @@ use window_service::window::Window;
 use window_service::window::Tab;
 use rustc_serialize::json::DecoderError;
 use config;
+use url::percent_encoding;
 
 
 pub fn focused_record(context: &mut Context,
@@ -80,11 +81,9 @@ pub fn complex_query(context: &mut Context,
                     Err(e) => (),
                 }
             }
-            println!("main validated query: {:#?}", main_validated);
-            println!("res_validated query: {:#?}", rest_validated);
+            println!("main validated query: {:#?}", &main_validated.query);
             let rest_data: Result<Vec<TableDao>, ServiceError> =
                 retrieve_main_data(context, &main_validated, &rest_validated);
-            println!("rest_data: {:#?}", rest_data);
             rest_data
         }
         Err(e) => Err(ServiceError::from(e)), 
@@ -629,7 +628,14 @@ fn parse_complex_url_query(main_table: &str,
     let mut rest_table_filter = vec![];
 
     if let &Some(ref query) = url_query {
-        let table_queries: Vec<&str> = query.split("/").collect();
+        let query_decode = percent_encoding::percent_decode(query.as_bytes()).decode_utf8();
+        println!("decoded query: {:#?}", query_decode);
+        let clean_query: String = 
+            match query_decode{
+                Ok(ref query_decode) => query_decode.to_string(),
+                Err(e) => query.clone(),
+            };
+        let table_queries: Vec<&str> = clean_query.split("/").collect();
         if table_queries.len() > 0 {
             main_table_filter.filter = Some(table_queries[0].to_owned());
         };
@@ -677,6 +683,19 @@ fn test_parse_complex_query(){
     println!("main filter: {:#?}", main_filter);
     println!("rest filter: {:#?}", rest_filter);
     assert_eq!(rest_filter.len(), 1);
+}
+
+#[test]
+fn test_parse_complex_query_with_percent20(){
+    let url_query = "msg=like.hello%20world".to_string();
+    let (main_filter, rest_filter) = parse_complex_url_query("message", &Some(url_query));
+    println!("main filter: {:#?}", main_filter);
+    println!("rest filter: {:#?}", rest_filter);
+    assert_eq!(TableFilter{
+            table: "message".to_string(),
+            filter: Some("msg=like.hello world".to_string())
+            }, main_filter);
+    assert_eq!(rest_filter.len(), 0);
 }
 
 
@@ -1059,6 +1078,7 @@ struct ValidatedQuery {
 }
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 pub struct TableFilter {
     pub table: String,
     pub filter: Option<String>,
@@ -1080,6 +1100,7 @@ impl TableFilter {
             match self.filter {
                 Some(ref filter) => {
                     let parsed = inquerest::query(&filter);
+                    println!("parsed: {:?}", parsed);
                     match parsed {
                         Ok(parsed) => {
                             let focus_param = extract_focus_param(&parsed);

@@ -14,6 +14,7 @@ extern crate unicase;
 extern crate uuid;
 extern crate inquerest;
 extern crate chrono;
+extern crate url;
 
 
 pub mod global;
