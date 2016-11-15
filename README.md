@@ -18,6 +18,10 @@ Curtain is a data management system for PostgreSQL using the best of current tec
 [link1](https://gfycat.com/GlossyDownrightBorderterrier) [link2](http://s1.webmshare.com/BXZxE.webm)
 
 
+## Goal
+- A user friendly data manipulation tool even to non-technical users.
+
+
 ## Online Demo
 
 [Herokuapp Demo](http://curtain-elm.herokuapp.com)
@@ -57,9 +61,9 @@ Design is inspired by Openbravo, iDempiere/Adempiere, Compiere etc.
 
 
 If you would like to support my project
-[Bountysource](https://www.bountysource.com/teams/ivanceras)
-[Gratipay](https://gratipay.com/~ivanceras/)
-[twitter: @ivanceras](https://twitter.com/ivanceras)
+- [Bountysource](https://www.bountysource.com/teams/ivanceras)
+- [Gratipay](https://gratipay.com/~ivanceras/)
+- [twitter: @ivanceras](https://twitter.com/ivanceras)
 
 Contact me: ivanceras[at]gmail.com
 
