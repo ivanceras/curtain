@@ -21,6 +21,19 @@ Curtain is a data management system for PostgreSQL using the best of current tec
 ## Goal
 - A user friendly data manipulation tool even to non-technical users.
 
+## Features
+- Intuitive and modern user interface
+    - Load on demand, infinite scrolling
+    - Fast and interactive filtering
+
+#### Load on demand, infinite scrolling
+Viewing a table will eagerly load only the first page, scrolling to the bottom of the page
+loads the next records, up until the last page
+
+#### Fast and interactive filtering
+Filter records as you type in text into their corresponding columns and displays only the matching records.
+
+
 
 ## Online Demo
 
