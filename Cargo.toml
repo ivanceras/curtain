@@ -2,6 +2,12 @@
 name = "curtain"
 version = "0.2.0"
 authors = ["Jovansonlee Cesar <ivanceras@gmail.com>"]
+license = "Apache-2.0"
+description = "A CRUD app for postgres"
+readme = "README.md"
+repository = "https://github.com/ivanceras/curtain"
+documentation = "https://docs.rs/curtain"
+keywords = ["crud", "database", "data", "records"]
 
 [features]
 standalone = []
