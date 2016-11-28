@@ -5,10 +5,9 @@ use std::collections::HashSet;
 use global::Context;
 use error::ParamError;
 use rustorm::database::DatabaseDev;
+use config;
 
 
-/// disabled at first release
-static INCLUDE_HAS_MANY: bool = false;
 
 
 /// try retrieving tables from cache, if none, then from db and cache it
@@ -194,7 +193,7 @@ fn window_tables(tables: &Vec<Table>) -> Vec<Table>{
     let table_tally = get_table_tally(tables);
     let sorted_tables: Vec<Table> =
         table_tally.iter().map(|&(table, tally)| table.clone()).collect();
-    if INCLUDE_HAS_MANY {
+    if config::INCLUDE_HAS_MANY {
         get_window_tables(&sorted_tables)
     } else {
        sorted_tables
