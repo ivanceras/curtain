@@ -47,6 +47,9 @@ version = "0.5"
 #path = "../rustorm"
 #features = ["sqlite"]
 
+[target.heroku]
+version = "nightly-2016-11-05"
+
 
 
 
