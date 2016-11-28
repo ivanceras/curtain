@@ -48,7 +48,7 @@ version = "0.5"
 #features = ["sqlite"]
 
 [target.heroku]
-version = "nightly-2016-11-05"
+version = "2016-11-05"
 
 
 
