@@ -4,7 +4,7 @@ os:
 language: rust
 
 rust:
-- nightly-2016-11-05
+- 2016-11-05
 
   
 script:
