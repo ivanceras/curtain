@@ -39,7 +39,7 @@ chrono = {version = "0.2", features = ["rustc-serialize"]}
 url = "1.2"
 
 [dependencies.inquerest]
-version = "0.1"
+version = "0.2"
 #path = "../inquerest"
 
 [dependencies.rustorm]

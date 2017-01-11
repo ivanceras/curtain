@@ -24,7 +24,7 @@ pub fn http_data_query(req: &mut Request) -> IronResult<Response> {
     };
 
     let iq = match param {
-        Some(param) => Some(inquerest::query(&param).unwrap()),
+        Some(param) => Some(inquerest::parse(&param).unwrap()),
         None => None,
     };
     let mut context = Context::new(req);

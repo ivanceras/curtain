@@ -1099,7 +1099,7 @@ impl TableFilter {
             };
             match self.filter {
                 Some(ref filter) => {
-                    let parsed = inquerest::query(&filter);
+                    let parsed = inquerest::parse(&filter);
                     println!("parsed: {:?}", parsed);
                     match parsed {
                         Ok(parsed) => {
@@ -1113,7 +1113,7 @@ impl TableFilter {
                             };
                             Ok(vquery)
                         }
-                        Err(e) => Err(ParseError::new(&format!("unable to parse query {}", e))),
+                        Err(e) => Err(ParseError::new(&format!("unable to parse query {:?}", e))),
                     }
                 }
                 None => {
