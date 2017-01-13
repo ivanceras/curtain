@@ -1,11 +1,11 @@
 {
-  "name": "Example Rust application",
-  "description": "A barebones Rust application using the Iron middleware framework",
-  "repository": "https://github.com/mcasper/heroku-rust-cargo-hello",
+  "name": "Curtain",
+  "description": "A data management system for PostgreSQL using the best of current technology.",
+  "repository": "https://github.com/ivanceras/curtain",
   "success_url": "/",
-  "keywords": ["rust", "iron"],
-  "website": "http://www.randomhacks.net/2014/09/17/deploying-rust-heroku-iron/",
+  "keywords": ["curtain", "postgresql, database, admin"],
+  "website": "http://ivanceras.github.io",
   "env": {
-    "BUILDPACK_URL": "https://github.com/mcasper/heroku-buildpack-rust.git"
+    "BUILDPACK_URL": "https://github.com/Hoverbear/heroku-buildpack-rust"
   }
 }
