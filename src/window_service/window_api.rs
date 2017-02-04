@@ -216,33 +216,37 @@ fn get_window_tables(tables: &Vec<Table>) -> Vec<Table> {
                 if all_extension_tables.contains(&&t) {
                     info!("EXTENSION table: {}", t);
                 } else {
-                    info!("{}", t.name);
-                    window_tables.push(t.clone());
-                    for (col, has1) in t.referred_tables(tables) {
-                        info!("\t has one: {} -> {}", col.condense_name(), has1);
-                    }
-                    for ext in t.extension_tables(tables) {
-                        info!("\t ext tab: {} [{}]",
-                              ext.name,
-                              ext.condensed_displayname(&t));
-                    }
-                    for (has_many, column) in t.referring_tables(tables) {
-                        if !has_many.is_linker_table() {
-                            info!("\t has many direct: {} [{}] via column: {}",
+                    if t.name.starts_with("__"){
+                        info!("Special table: {}", t.name);
+                    }else{
+                        info!("{}", t.name);
+                        window_tables.push(t.clone());
+                        for (col, has1) in t.referred_tables(tables) {
+                            info!("\t has one: {} -> {}", col.condense_name(), has1);
+                        }
+                        for ext in t.extension_tables(tables) {
+                            info!("\t ext tab: {} [{}]",
+                                  ext.name,
+                                  ext.condensed_displayname(&t));
+                        }
+                        for (has_many, column) in t.referring_tables(tables) {
+                            if !has_many.is_linker_table() {
+                                info!("\t has many direct: {} [{}] via column: {}",
+                                      has_many.name,
+                                      has_many.condensed_displayname(&t),
+                                      column.name);
+                            } else {
+                                // println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
+                            }
+                        }
+                        for (has_many, linker, via_column) in t.indirect_referring_tables(tables) {
+                            info!("\t has many INDIRECT: {}[{}], via {} via column {}",
                                   has_many.name,
                                   has_many.condensed_displayname(&t),
-                                  column.name);
-                        } else {
-                            // println!("\t has many direct: {} <---- but is a linker table, so no!", has_many.name);
+                                  linker.name,
+                                  via_column.name);
                         }
-                    }
-                    for (has_many, linker, via_column) in t.indirect_referring_tables(tables) {
-                        info!("\t has many INDIRECT: {}[{}], via {} via column {}",
-                              has_many.name,
-                              has_many.condensed_displayname(&t),
-                              linker.name,
-                              via_column.name);
-                    }
+                     }
                 }
             }
         }
