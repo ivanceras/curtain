@@ -7,6 +7,7 @@ use rustorm::query::Query;
 
 use rustorm::database::DatabaseDev;
 use window_service::window_api;
+use rustorm::dao::Type;
 
 /// detailed reference of a field
 ///
@@ -235,14 +236,22 @@ impl Field {
                 self
             }
             "name" => {
-                self.is_significant = true;
-                self.significance_priority = Some(10);
-                self.seq_no = 200;
-                self.is_displayed = true;
-                self.display_length = Some(20);
-                self.is_readonly = false;
-                self.is_auxilliary = false;
-                self
+                if column.is_primary{
+                    if column.data_type == Type::String{
+                        self.is_keyfield = false
+                    }
+                    self
+                }else{
+                    self.is_significant = true;
+                    self.significance_priority = Some(10);
+                    self.seq_no = 200;
+                    self.is_displayed = true;
+                    self.display_length = Some(20);
+                    self.is_readonly = false;
+                    self.is_auxilliary = false;
+                    self.info = Some("A name of the record".to_string());
+                    self
+                }
             }
             "value" => {
                 self.is_significant = true;
@@ -376,10 +385,13 @@ impl Field {
 
                     self
                 } else if column.is_primary {
-                    self.is_significant = false;
+                    if column.data_type == Type::String{
+                        self.is_significant = true;
+                        self.is_keyfield = false;
+                        self.is_displayed = true;
+                    }
                     self.significance_priority = None;
                     self.seq_no = 10;
-                    self.is_displayed = false;
                     self.display_length = Some(20);
                     self.is_readonly = false;
                     self.is_auxilliary = false;
