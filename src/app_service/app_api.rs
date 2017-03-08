@@ -271,7 +271,7 @@ fn apply_data_changeset(context: &mut Context,
                         window: &Window,
                         changesets: &Vec<Changeset>)
                         -> Result<Vec<UpdateResponse>, DbError> {
-    let window_tables = match extract_window_tables(context, window) {
+    match extract_window_tables(context, window) {
         Ok(window_tables) => {
             let main_updates:Vec<UpdateResponse> =
                 apply_changeset_to_main_table(context, &window_tables.main_table, changesets)?;
@@ -289,13 +289,12 @@ fn apply_data_changeset(context: &mut Context,
                 update_response.extend(main_updates);
                 update_response.extend(direct_updates);
                 update_response.extend(indirect_updates);
-                return Ok(update_response);
+                Ok(update_response)
         }
         Err(e) => {
-            return Err(DbError::new("no window tables"));
+            Err(DbError::new("no window tables"))
         }
-    };
-    Ok(vec![])
+    }
 }
 
 /// only owned direct table will be updated on this place since
