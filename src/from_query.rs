@@ -1,7 +1,7 @@
 extern crate inquerest as iq;
 extern crate rustorm;
 
-use rustorm::query::{Query, Join, Filter, Condition, Connector, Equality, Operand, Modifier,
+use rustorm::query::{Select, Join, Filter, Condition, Connector, Equality, Operand, Modifier,
                      JoinType, ColumnName, Function, Direction, Range, NullsWhere, Order};
 use rustorm::query::TableName;
 use rustorm::dao::Value;
@@ -11,15 +11,15 @@ use validator::DbElementValidator;
 /// convert inquery to sql query
 
 pub trait FromQuery {
-    fn transform(&self, validator: &DbElementValidator) -> Query;
+    fn transform(&self, validator: &DbElementValidator) -> Select;
 }
 
 
-impl FromQuery for iq::Query {
+impl FromQuery for iq::Select {
     /// you would still want to check for validity and permission first
     /// before even blindly transforming the query
-    fn transform(&self, validator: &DbElementValidator) -> Query {
-        let mut q = Query::new();
+    fn transform(&self, validator: &DbElementValidator) -> Select {
+        let mut q = Select::new();
 
         for ref fr in &self.from {
             match fr {
@@ -36,7 +36,7 @@ impl FromQuery for iq::Query {
             q.joins.push(j.transform(validator));
         }
         for f in &self.filters {
-            q.add_filter(f.transform(validator));
+            q.add_filter(&f.transform(validator));
         }
         for g in &self.group_by {
             q.group_by.push(g.smart_transform(validator));

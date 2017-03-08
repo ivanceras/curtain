@@ -21,7 +21,10 @@ pub fn get_tables(context: &mut Context) -> Vec<Table> {
 }
 
 pub fn get_tables_from_db_then_cache_in_context(context: &mut Context) -> Vec<Table> {
-    let db_tables = get_all_tables_from_db(context.db_dev().unwrap());
+    let platform = context.db().unwrap();
+    let db_dev = &*platform.as_dev();
+    let db_tables = get_all_tables_from_db(&*context.db().unwrap().as_dev());
+
     context.cache_tables(db_tables.clone());
     db_tables
 }
@@ -255,12 +258,6 @@ fn get_window_tables(tables: &Vec<Table>) -> Vec<Table> {
 }
 
 
-
-
-
-
-
-
 fn get_all_extension_tables(tables: &Vec<Table>) -> Vec<&Table> {
     let mut all_extension_tables = Vec::new();
     for t in tables {
@@ -274,3 +271,4 @@ fn get_all_extension_tables(tables: &Vec<Table>) -> Vec<&Table> {
     all_extension_tables
 
 }
+

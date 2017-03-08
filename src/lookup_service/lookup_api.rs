@@ -19,6 +19,8 @@ use rustorm::query::table_name::ToTableName;
 use rustorm::database::DbError;
 use rustorm::table::Table;
 use window_service::window::{Window, Tab};
+use rustorm::query::Select;
+use rustorm::query::IsQuery;
 
 #[derive(Debug)]
 #[derive(RustcEncodable)]
@@ -135,32 +137,30 @@ fn retrieve_data_from_lookup_table(context: &mut Context,
                                    tables: &Vec<Table>)
                                    -> Result<Vec<LookupTable>, DbError> {
     let mut lookup_tables: Vec<LookupTable> = vec![];
+    let platform = context.db().unwrap();
+    let db_dev = &*platform.as_dev();
+    let db = &*context.db()?;
     for table in tables {
-        let est_row_count = match context.db_dev() {
-            Ok(db_dev) => {
-                let ref_schema = match table.schema {
-                    Some(ref schema) => schema.to_owned(),
-                    None => panic!("there should be schema"),
-                };
-                println!("schema: {}, table: {}", ref_schema, table.name);
-                let est_row_count = db_dev.get_row_count_estimate(&ref_schema, &table.name);
-                est_row_count
-            }
-            Err(e) => {
-                return Err(e);
-            }
+        let est_row_count = { 
+            let ref_schema = match table.schema {
+                Some(ref schema) => schema.to_owned(),
+                None => panic!("there should be schema"),
+            };
+            println!("schema: {}, table: {}", ref_schema, table.name);
+            let est_row_count = db_dev.get_row_count_estimate(&ref_schema, &table.name);
+            est_row_count
         };
         if let Some(est_row_count) = est_row_count {
             let thresh_hold = 20;
             // retrieve_lookup_dao
             let table_name = table.to_table_name();
-            let mut query = Query::select();
+            let mut query = Select::new();
             query.enumerate_from_table(&table_name);
             query.from(table);
             query.set_limit(thresh_hold);
-            let debug = query.debug_build(context.db().unwrap());
+            let debug = query.debug_build(db);
             println!("debug sql: {}", debug);
-            let dao_result = match query.retrieve(context.db().unwrap()) {
+            let dao_result = match query.retrieve(db) {
                 Ok(dao_result) => dao_result,
                 Err(e) => {
                     return Err(e);

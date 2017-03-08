@@ -9,7 +9,7 @@ use global::Context;
 
 pub fn json_data_query(context: &mut Context,
                        table: &str,
-                       iq: Option<inquerest::Query>)
+                       iq: Option<inquerest::Select>)
                        -> Result<String, String> {
     match data_service::data_api::retrieve_data_from_query(context, table, iq) {
         Ok(result) => Ok(json::encode(&result).unwrap()),

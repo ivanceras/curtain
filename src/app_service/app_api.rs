@@ -4,7 +4,7 @@ use global::Context;
 use window_service::window_api;
 use validator::DbElementValidator;
 use from_query::FromQuery;
-use rustorm::query::Query;
+use rustorm::query::Select;
 use inquerest as iq;
 use rustorm::dao::Dao;
 use rustorm::dao::DaoResult;
@@ -29,6 +29,10 @@ use window_service::window::Tab;
 use rustc_serialize::json::DecoderError;
 use config;
 use url::percent_encoding;
+use rustorm::query::IsQuery;
+use rustorm::query::Update;
+use rustorm::query::Delete;
+use rustorm::query::Insert;
 
 
 pub fn focused_record(context: &mut Context,
@@ -103,9 +107,9 @@ fn retrieve_main_data(context: &mut Context,
         }
     };
     let mut table_dao = vec![];
-    let mut mquery: Query = match main_query.query {
+    let mut mquery: Select = match main_query.query {
         Some(ref query) => query.clone(),
-        None => Query::new(),
+        None => Select::new(),
     };
     let main_table_name = main_table.to_table_name();
     mquery.enumerate_from_table(&main_table_name);
@@ -113,16 +117,10 @@ fn retrieve_main_data(context: &mut Context,
     if mquery.get_range().limit.is_none() {
         mquery.set_limit(config::default_page_size);
     }
-    let main_debug = mquery.debug_build(context.db()?);
+    let db = &*context.db()?;
+    let main_debug = mquery.debug_build(db);
     let main_dao_result = {
-        let db = match context.db() {
-            Ok(db) => db,
-            Err(e) => {
-                return Err(ServiceError::from(e));
-            }
-        };
         let debug_sql = mquery.debug_build(db);
-        println!("DEBUG SQL: {}", debug_sql);
         match mquery.retrieve(db) {
             Ok(main_dao_result) => main_dao_result,
             Err(e) => {
@@ -457,10 +455,11 @@ fn apply_changeset_to_main_table(context: &mut Context,
 
 
 fn get_total_records(context: &mut Context, table: &Table)-> Result<usize, DbError> {
-    let mut query = Query::new();
+    let mut query = Select::new();
     query.column("COUNT(*) as COUNT");
     query.from(table);
-    let result = query.retrieve_one(context.db()?)?;
+    let db = &*context.db()?;
+    let result = query.retrieve_one(db)?;
     match result{
         Some(result) => {
             let count = result.get("count");
@@ -540,8 +539,7 @@ fn update_dao(context: &mut Context,
     let &(ref tab, ref table) = tab_table;
     let filters = create_filter_from_dao(&table, &dao.original);
     let min = dao.minimize_update();
-    let mut query = Query::update();
-    query.table(table);
+    let mut query = Update::table(&table.to_table_name());
     for column in &table.columns {
         let value = min.get(&column.name);
         if let Some(value) = value {
@@ -550,10 +548,10 @@ fn update_dao(context: &mut Context,
     }
     query.add_filters(&filters);
     query.return_all();
-    let result = query.retrieve_one(context.db()?)?;
+    let result:Result<Dao,DbError> = context.db()?.update(&query);
     match result {
-        Some(result) => Ok(Some(result)),
-        None => Ok(None),
+        Ok(result) => Ok(Some(result)),
+        Err(e) => Ok(None),
     }
 }
 
@@ -561,20 +559,20 @@ fn delete_dao_with_filter(context: &mut Context,
                           table: &Table,
                           filters: &Vec<Filter>)
                           -> Result<usize, DbError> {
-    let mut query = Query::delete();
-    query.from(table);
-    query.add_filters(filters);
-    let debug = query.debug_build(context.db()?);
-    query.execute(context.db()?)
+    let mut query = Delete::from(&table.to_table_name());
+    query.add_filters(filters.clone());
+    let db = &*context.db()?;
+    let debug = query.debug_build(db);
+    query.execute(db)
 }
 
 fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<usize, DbError> {
     let &(ref tab, ref table) = tab_table;
     let filters = create_filter_from_dao(&table, dao);
-    let mut query = Query::delete();
-    query.from(table);
-    query.add_filters(&filters);
-    let result = query.execute(context.db()?);
+    let mut query = Delete::from(&table.to_table_name());
+    query.add_filters(filters);
+    let db = &*context.db()?;
+    let result = query.execute(db);
     println!("result: {:?}", result);
     result
 }
@@ -582,36 +580,19 @@ fn delete_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Res
 fn insert_dao(context: &mut Context, tab_table: &(Tab, Table), dao: &Dao) -> Result<Dao, DbError> {
     println!("About to insert dao: {:?}", dao);
     let &(ref tab, ref table) = tab_table;
-    let mut query = Query::insert();
-    query.table(table);
+    let mut query = Insert::into(&table.to_table_name());
     for column in &table.columns {
         if let Some(value) = dao.get(&column.name) {
             query.set(&column.name, value);
         }
     }
     query.return_all();
-    match context.db() {
-        Ok(db) => {
-            let debug = query.debug_build(db);
-            println!("DEBUG SQL: {}", debug);
-            let dao: Result<Option<Dao>, DbError> = query.retrieve_one(db);
-            println!("inserted dao: {:?}", dao);
-            match dao {
-                Ok(dao) => {
-                    match dao {
-                        Some(dao) => Ok(dao),
-                        None => {
-                            return Err(DbError::new("unable to get dao"));
-                        }
-                    }
-                }
-                Err(e) => Err(e),
-            }
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    let db = &*context.db()?;
+    let debug = query.debug_build(db);
+    println!("DEBUG SQL: {}", debug);
+    let dao: Result<Dao, DbError> = db.insert(&query);
+    println!("inserted dao: {:?}", dao);
+    dao
 }
 
 
@@ -716,9 +697,10 @@ fn retrieve_data_from_direct_tabs(context: &mut Context,
             }
         };
         let mut query = build_query(&main_table, &table, &main_with_focused_filter, rest_vquery);
-        let debug = query.debug_build(context.db()?);
+        let db = &*context.db()?;
+        let debug = query.debug_build(db);
         println!("-->> DIRECT TAB SQL {}", debug);
-        match query.retrieve(context.db()?) {
+        match query.retrieve(db) {
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result, &table.complete_name());
                 tabs_table_dao.push(table_dao);
@@ -764,9 +746,10 @@ fn retrieve_data_from_indirect_tabs(context: &mut Context,
                                                     &linker_table,
                                                     rest_vquery);
 
-        let debug = ind_query.debug_build(context.db()?);
+        let db = &*context.db()?;
+        let debug = ind_query.debug_build(db);
         println!("-->> INDIRECT TAB SQL {}", debug);
-        match ind_query.retrieve(context.db()?) {
+        match ind_query.retrieve(db) {
             Ok(dao_result) => {
                 let table_dao = TableDao::from_dao_result(&dao_result,
                                                           &indirect_table.complete_name());
@@ -785,8 +768,8 @@ fn build_query(main_table: &Table,
                ext_table: &Table,
                main_filter: &Vec<Filter>,
                rest_vquery: &Vec<ValidatedQuery>)
-               -> Query {
-    let mut ext_query = Query::select();
+               -> Select {
+    let mut ext_query = Select::new();
     let ext_table_name = ext_table.to_table_name();
     ext_query.enumerate_from_table(&ext_table_name);
     ext_query.from(main_table);
@@ -799,12 +782,12 @@ fn build_query(main_table: &Table,
     };
     ext_query.joins.push(ext_join);
     for filter in main_filter {
-        ext_query.add_filter(filter.clone());
+        ext_query.add_filter(filter);
     }
     let ext_filters = rest_vquery.find_query(ext_table);
     if let Some(ext_filters) = ext_filters {
         for ext_filter in ext_filters.filters {
-            ext_query.add_filter(ext_filter);
+            ext_query.add_filter(&ext_filter);
         }
     }
     ext_query
@@ -815,8 +798,8 @@ fn build_query_with_linker(main_table: &Table,
                            main_filter: &Vec<Filter>,
                            linker_table: &Table,
                            rest_vquery: &Vec<ValidatedQuery>)
-                           -> Query {
-    let mut query = Query::select();
+                           -> Select {
+    let mut query = Select::new();
     query.enumerate_from_table(&indirect_table.to_table_name());
     query.from(main_table);
     let join1 = Join {
@@ -834,12 +817,12 @@ fn build_query_with_linker(main_table: &Table,
     };
     query.joins.push(join2);
     for filter in main_filter {
-        query.add_filter(filter.clone());
+        query.add_filter(filter);
     }
     let ind_query = rest_vquery.find_query(indirect_table);
     if let Some(ind_query) = ind_query {
         for indirect_filter in ind_query.filters {
-            query.add_filter(indirect_filter);
+            query.add_filter(&indirect_filter);
         }
     }
     query
@@ -938,7 +921,7 @@ fn find_from_dao_list(dao_list: &Vec<Dao>, needle: &BTreeMap<String, Value>) -> 
 
 /// extract the filters of this query from main table, but adds details to the column names to avoid unambigous feild
 /// if there is no table specified in the column name, the main table is added, else leave it as it is
-fn extract_comprehensive_filter(main_table: &Table, main_query: &Query) -> Vec<Filter> {
+fn extract_comprehensive_filter(main_table: &Table, main_query: &Select) -> Vec<Filter> {
     let mut filters = vec![];
     for filter in &main_query.filters {
         let mut condition = filter.condition.clone();
@@ -1009,11 +992,11 @@ fn create_on_filter(main_table: &Table, table: &Table) -> Filter {
 }
 
 trait QuerySearch {
-    fn find_query(&self, table: &Table) -> Option<Query>;
+    fn find_query(&self, table: &Table) -> Option<Select>;
 }
 
 impl QuerySearch for Vec<ValidatedQuery> {
-    fn find_query(&self, table: &Table) -> Option<Query> {
+    fn find_query(&self, table: &Table) -> Option<Select> {
         for vquery in self {
             // find if the vquery will match this table
             if &vquery.table == table {
@@ -1073,7 +1056,7 @@ impl TableDao {
 #[derive(Debug)]
 struct ValidatedQuery {
     table: Table,
-    query: Option<Query>,
+    query: Option<Select>,
     focus_param: Option<FocusParam>,
 }
 
@@ -1133,7 +1116,8 @@ impl TableFilter {
 
 
 /// prioritized focused_record than focused
-fn extract_focus_param(iquery: &iq::Query) -> Option<FocusParam> {
+/// TODO: deal with composite primary keys 
+fn extract_focus_param(iquery: &iq::Select) -> Option<FocusParam> {
     let focused_record = find_in_equation(&iquery.equations, "focused_record");
     println!("focused_record: {:?}", focused_record);
     if let Some(focused_record) = focused_record {
@@ -1158,16 +1142,6 @@ fn extract_focus_param(iquery: &iq::Query) -> Option<FocusParam> {
             &iq::Operand::Function(ref value) => {
                 panic!("functions are unsupported");
             }
-        }
-    }
-    let focused = find_in_equation(&iquery.equations, "focused");
-    if let Some(focused) = focused {
-        match focused {
-            &iq::Operand::Number(number) => {
-                let focused = number as usize;
-                return Some(FocusParam::Index(focused));
-            }
-            _ => (), 
         }
     }
     None

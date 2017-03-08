@@ -1,7 +1,7 @@
 
 use rustorm::dao::DaoResult;
 use rustorm::database::DbError;
-use rustorm::query::Query;
+use rustorm::query::Select;
 use window_service;
 use std::collections::BTreeMap;
 use rustorm::table::Table;
@@ -27,9 +27,9 @@ use config;
 /// from, joins, columns,grouping are ignored
 pub fn retrieve_data_from_query(context: &mut Context,
                                 arg_table: &str,
-                                iquery: Option<inquerest::Query>)
+                                iquery: Option<inquerest::Select>)
                                 -> Result<DaoResult, DbError> {
-    let mut query = Query::select_all();
+    let mut query = Select::all();
     let table = window_service::window_api::get_matching_table(context, arg_table).unwrap();
     // tables are gotten from window service
     // main table is used, while extension tables is left joined
@@ -60,7 +60,7 @@ pub fn retrieve_data_from_query(context: &mut Context,
         }
         None => (),
     };
-    let ret = query.retrieve(context.db().unwrap());
+    let ret = query.retrieve(&*context.db()?);
     match ret {
         Ok(result) => Ok(result),
         Err(e) => Err(e),
