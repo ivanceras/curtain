@@ -45,7 +45,7 @@ version = "0.2"
 [dependencies.rustorm]
 version = "0.6"
 #path = "../rustorm"
-features = ["postgres","sqlite"]
+features = ["postgres"]
 
 
 
