@@ -237,9 +237,9 @@ pub fn http_reset_cache(req: &mut Request) -> IronResult<Response> {
 
 pub fn http_can_db_url_connect(req: &mut Request) -> IronResult<Response> {
     let mut context = Context::new(req);
-    let pool = pool::db_with_url(&context.db_url);
-    match pool {
-        Ok(pool) => Ok(Response::with((Status::Ok, json::encode(&"OK").unwrap()))),
+    let test = pool::test_connection(&context.db_url);
+    match test {
+        Ok(_) => Ok(Response::with((Status::Ok, json::encode(&"OK").unwrap()))),
         Err(e) => Ok(Response::with((Status::BadRequest, json::encode(&"Unable to connect DB").unwrap()))),
     }
 }

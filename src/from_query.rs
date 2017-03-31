@@ -202,7 +202,7 @@ impl FromOperand for iq::Operand {
         match &self {
             &&iq::Operand::Column(ref column) => {
                 if validator.is_valid_column(column) {
-                    Operand::ColumnName(ColumnName::from_str(column))
+                    Operand::ColumnName(ColumnName::from(column.clone()))
                 } else {
                     Operand::Value(Value::String(column.to_owned()))
                 }
@@ -247,8 +247,8 @@ impl FromJoin for iq::Join {
 
         assert_eq!(self.column1.len(), self.column2.len());
         assert!(self.column1.len() > 0);
-        let left0 = Operand::ColumnName(ColumnName::from_str(&self.column1[0]));
-        let right0 = Operand::ColumnName(ColumnName::from_str(&self.column2[0]));
+        let left0 = Operand::ColumnName(self.column1[0].clone().into());
+        let right0 = Operand::ColumnName(self.column2[0].clone().into());
         let cond0 = Condition {
             left: left0,
             equality: Equality::EQ,
@@ -257,8 +257,8 @@ impl FromJoin for iq::Join {
 
         let mut sub_filters = vec![];
         for i in 1..self.column1.len() {
-            let left = Operand::ColumnName(ColumnName::from_str(&self.column1[i]));
-            let right = Operand::ColumnName(ColumnName::from_str(&self.column2[i]));
+            let left = Operand::ColumnName(ColumnName::from(self.column1[i].clone()));
+            let right = Operand::ColumnName(ColumnName::from(self.column2[i].clone()));
             let filter = Filter {
                 connector: Connector::And,
                 condition: Condition {

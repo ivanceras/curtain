@@ -968,7 +968,7 @@ fn create_on_filter(main_table: &Table, table: &Table) -> Filter {
         let condition = Condition {
             left: Operand::ColumnName(fc.to_column_name()),
             equality: Equality::EQ,
-            right: Operand::ColumnName(ColumnName::from_str(&fk)),
+            right: Operand::ColumnName(fk.into()),
         };
         let filter = Filter {
             connector: Connector::Or, // TODO: need more work, should have for each column

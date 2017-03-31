@@ -17,11 +17,6 @@ default = ["webserver"]
 [[bin]]
 name = "iron_curtain"
 
-
-
-
-
-
 [dependencies]
 hyper = "0.10"
 rustc-serialize = "0.3"
@@ -44,7 +39,7 @@ version = "0.2"
 
 [dependencies.rustorm]
 version = "0.6"
-#path = "../rustorm"
+path = "../rustorm"
 features = ["postgres"]
 
 
