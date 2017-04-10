@@ -38,8 +38,8 @@ version = "0.2"
 #path = "../inquerest"
 
 [dependencies.rustorm]
-version = "0.6"
-path = "../rustorm"
+version = "0.7"
+#path = "../rustorm"
 features = ["postgres"]
 
 
