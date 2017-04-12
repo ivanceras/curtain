@@ -20,7 +20,7 @@ name = "iron_curtain"
 [dependencies]
 hyper = "0.10"
 rustc-serialize = "0.3"
-uuid = {version = "0.3", features = ["v4"]}
+uuid = {version = "0.4", features = ["v4"]}
 iron = "0.3"
 mount = "0.1"
 router = "0.1"
@@ -40,7 +40,8 @@ version = "0.2"
 [dependencies.rustorm]
 version = "0.7"
 #path = "../rustorm"
-features = ["postgres"]
+features = ["postgres","uuid"]
+git = "https://github.com/ivanceras/rustorm"
 
 
 
