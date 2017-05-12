@@ -41,7 +41,7 @@ Filter records as you type in text into their corresponding columns and displays
 
 [Herokuapp Demo](http://curtain-elm.herokuapp.com)
 
-[DigitalOcean Demo](http://45.55.7.231:8080/)
+[DigitalOcean Demo](http://138.68.253.245/curtain/)
 
 Data and schema of the database used in the demo can be found here [mockdata](https://github.com/ivanceras/mockdata) which was generated using mockaroo.com
 
