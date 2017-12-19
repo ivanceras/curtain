@@ -1,5 +1,7 @@
 # Curtain
 
+# DEPRECATED, goto https://github.com/ivanceras/diwata
+
 [![Build Status](https://api.travis-ci.org/ivanceras/curtain.svg)](https://travis-ci.org/ivanceras/curtain)
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/ivanceras/curtain/tree/master)
